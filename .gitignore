@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+data/raw/_ckpt*
+data/raw/_collected*
+data/raw/_remaining*
+data/raw/_supplement*
+scraper/__pycache__/
