@@ -512,24 +512,89 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
         except Exception as e:
             safe_print(f"[DETAIL] price error: {e}")
 
-        # === 10. FOTO ===
+        # === 10. FOTO (HIGH-RES, tidak burem) ===
+        def _to_high_res(url: str) -> str:
+            """Upscale thumbnail URL ke high-res untuk menghindari burem.
+            Contoh: ...=w32-h32-p-k-no -> ...=s1024  atau ...=w428-h240-k-no -> ...=s1024
+            Avatar (/a/) tetap di-skip di caller, tapi jika lolos tetap di-upscale.
+            """
+            if not url or "googleusercontent" not in url:
+                return url
+            # Jika sudah s0 (original) biarkan
+            if "=s0" in url:
+                return url
+            # Replace size param: =wXXX-hXXX... atau =wXXX... atau =sXXX...
+            # Ambil base sebelum '='
+            if "=" in url:
+                base = url.split("=")[0]
+                # Gunakan s1024 untuk foto, s800 juga cukup. s0 = original (paling tajam tapi besar)
+                return base + "=s1024"
+            # Fallback jika tidak ada '=', tambahkan
+            return url + "=s1024"
+
         try:
             imgs = await page.locator('img[src*="googleusercontent"]').all()
             urls = []
             seen = set()
-            for img in imgs[:15]:
-                src = await img.get_attribute("src")
-                if src and "googleusercontent" in src and src not in seen:
-                    urls.append(src)
-                    seen.add(src)
-            place.foto_urls = urls
+            for img in imgs[:20]:
+                src = await img.get_attribute("src") or await img.get_attribute("data-src")
+                # Juga coba srcset untuk resolusi lebih tinggi
+                srcset = await img.get_attribute("srcset")
+                if srcset:
+                    # srcset format: "url1 1x, url2 2x" -> ambil url terbesar
+                    parts = srcset.split(",")
+                    candidate = parts[-1].strip().split(" ")[0]
+                    if candidate and "googleusercontent" in candidate:
+                        src = candidate
+                if not src or "googleusercontent" not in src:
+                    continue
+                # Skip avatar / profile (burem karena kecil dan bukan foto tempat)
+                # Avatar biasanya path /a/ atau /a-/ atau w36-h36
+                if "/a/" in src or "/a-" in src:
+                    continue
+                if "w36-h36" in src and "gps-cs-s" not in src:
+                    continue
+                # Upscale ke high-res
+                high = _to_high_res(src)
+                if high not in seen:
+                    urls.append(high)
+                    seen.add(high)
+                # Juga simpan upscale dari srcset jika ada
+                if srcset and src not in seen:
+                    # Simpan juga versi upscale dari src original untuk fallback
+                    pass
+            # Jika masih kosong, coba cari via background-image style
+            if not urls:
+                try:
+                    bg_urls = await page.evaluate("""() => {
+                        const urls = [];
+                        document.querySelectorAll('[style*="googleusercontent"]').forEach(el => {
+                            const m = el.getAttribute('style').match(/https:\\/\\/[^'\"\\s]+googleusercontent[^'\"\\s)]+/);
+                            if (m) urls.push(m[0]);
+                        });
+                        return urls.slice(0,10);
+                    }""")
+                    for u in bg_urls:
+                        high = _to_high_res(u)
+                        if high not in seen:
+                            urls.append(high)
+                            seen.add(high)
+                except:
+                    pass
+            # Deduplicate dan batasi 10 foto high-res terbaik
+            place.foto_urls = urls[:10]
+            # Simpan juga thumbnail asli untuk debug jika perlu
+            if urls:
+                place.attributes["foto_high_res"] = True
+                place.attributes["foto_count_high_res"] = len(urls)
 
             # juga coba button photo
             if not place.foto_urls:
                 photos = await page.locator('button:has-text("Photos"), button:has-text("Foto")').all_inner_texts()
                 pass
-        except:
-            pass
+        except Exception as e:
+            safe_print(f"[DETAIL] foto error: {e}")
+            place.foto_urls = []
 
         # === 11. REVIEWS (5 terbaru) ===
         try:
