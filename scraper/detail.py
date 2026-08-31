@@ -548,11 +548,8 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
                         src = candidate
                 if not src or "googleusercontent" not in src:
                     continue
-                # Skip avatar / profile (burem karena kecil dan bukan foto tempat)
-                # Avatar biasanya path /a/ atau /a-/ atau w36-h36
-                if "/a/" in src or "/a-" in src:
-                    continue
-                if "w36-h36" in src and "gps-cs-s" not in src:
+                # ONLY real photo: must contain /gps-cs-s/ (bukan avatar /a/ atau thumb lain)
+                if "/gps-cs-s/" not in src:
                     continue
                 # Upscale ke high-res
                 high = _to_high_res(src)
@@ -563,7 +560,7 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
                 if srcset and src not in seen:
                     # Simpan juga versi upscale dari src original untuk fallback
                     pass
-            # Jika masih kosong, coba cari via background-image style
+            # Jika masih kosong, coba cari via background-image style (hanya gps-cs-s)
             if not urls:
                 try:
                     bg_urls = await page.evaluate("""() => {
@@ -575,6 +572,8 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
                         return urls.slice(0,10);
                     }""")
                     for u in bg_urls:
+                        if "/gps-cs-s/" not in u:
+                            continue
                         high = _to_high_res(u)
                         if high not in seen:
                             urls.append(high)
