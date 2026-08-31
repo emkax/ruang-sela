@@ -396,24 +396,95 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
                     place.jam_operasional[k] = clean_icon(place.jam_operasional[k])
             if place.status_buka:
                 place.status_buka = clean_icon(place.status_buka)
+
+            # === ENHANCED: POPULAR TIMES / BUSY HOURS (butuh auth) ===
+            try:
+                # Popular times biasanya muncul sebagai "Waktu ramai" atau "Popular times" dengan histogram
+                # Coba cari via aria-label mengandung busy/popular/ramai
+                busy_texts = []
+                # 1. cari teks "Waktu ramai" / "Popular times" di page
+                for phrase in ["Waktu ramai", "Popular times", "Jam ramai", "Busy"]:
+                    loc = page.locator(f'text="{phrase}"')
+                    if await loc.count() > 0:
+                        # Ambil parent container
+                        try:
+                            parent = loc.first.locator("..")
+                            txt = await parent.inner_text()
+                            busy_texts.append(clean_icon(txt[:1500]))
+                        except:
+                            pass
+                # 2. cari aria-label dengan persentase busy e.g. "30% busy at 9 AM"
+                try:
+                    aria_busy = await page.eval_on_selector_all("[aria-label]", "els => els.map(e=>e.getAttribute('aria-label')).filter(a=>a && (/busy|ramai|popular|%.*[0-9].*AM|PM/i.test(a))).slice(0,20)")
+                    for a in aria_busy:
+                        if a and len(a) < 300:
+                            busy_texts.append(clean_icon(a))
+                except:
+                    pass
+                # 3. Evaluate JS: window data may contain histogram
+                try:
+                    content_busy = await page.content()
+                    # Look for popularTimes in embedded JSON
+                    m_pop = re.search(r'popularTimes[^}]{0,800}', content_busy, re.I)
+                    if m_pop:
+                        busy_texts.append(clean_icon(m_pop.group(0)[:1000]))
+                    # Look for histogram bars with aria-valuenow
+                    m_hist = re.search(r'aria-valuenow="(\d+)"[^>]*aria-label="[^"]*(\d+)\s*%[^"]*busy[^"]*"', content_busy, re.I)
+                    if m_hist:
+                        busy_texts.append(m_hist.group(0)[:500])
+                except:
+                    pass
+
+                if busy_texts:
+                    # Deduplicate and save
+                    uniq = []
+                    seen_b = set()
+                    for t in busy_texts:
+                        if t not in seen_b and len(t) > 5:
+                            seen_b.add(t)
+                            uniq.append(t)
+                    place.popular_times = " | ".join(uniq)[:2500]
+                    place.jam_ramai = place.popular_times
+                    place.attributes["busy_hours_raw"] = place.popular_times
+                    # Analytics: hitung jam sepi vs ramai simple heuristic
+                    # Jika ada persentase, simpan juga
+                    place.attributes["has_busy_hours"] = True
+                else:
+                    place.attributes["has_busy_hours"] = False
+                    # Simpan body snippet dekat popular times untuk debug analytics
+                    if "ramai" in body_text.lower() or "popular" in body_text.lower():
+                        snippet = "\n".join([l for l in body_text.split("\n") if "ramai" in l.lower() or "popular" in l.lower()][:5])
+                        place.attributes["busy_debug_snippet"] = clean_icon(snippet)[:1000]
+            except Exception as e:
+                safe_print(f"[DETAIL] busy hours error: {e}")
+                place.attributes["has_busy_hours"] = False
         except Exception as e:
             safe_print(f"[DETAIL] jam error: {e}")
 
-        # === 9. HARGA / PRICE LEVEL ===
+        # === 9. HARGA / PRICE LEVEL (ENHANCED) ===
         try:
             body = await page.inner_text("body")
-            # Price level: Rp, $, €
-            # Cari span dengan $ atau Rp
-            price_el = page.locator('span:has-text("Rp"), span:has-text("$"), span[aria-label*="Price"]').first
-            if await price_el.count() > 0:
-                txt = (await price_el.inner_text()).strip()
-                if "Rp" in txt or "$" in txt:
-                    place.price_level = txt[:50]
+            content = await page.content()
+            # Price level: Rp, $, €, dan aria-label price
+            price_els = page.locator('span[aria-label*="Price"], span[aria-label*="Harga"], span:has-text("Rp"), span:has-text("$")')
+            cnt = await price_els.count()
+            for i in range(min(cnt, 5)):
+                try:
+                    txt = (await price_els.nth(i).inner_text()).strip()
+                    aria = await price_els.nth(i).get_attribute("aria-label")
+                    combined_p = (txt + " " + (aria or "")).strip()
+                    if "Rp" in combined_p or "$" in combined_p or "Price" in combined_p:
+                        if not place.price_level:
+                            place.price_level = clean_icon(combined_p)[:80]
+                        # also try to capture level like $$, Rp 100.000
+                        break
+                except:
+                    pass
             
-            # Cari price_range
+            # Cari price_range di body
             m = re.search(r"(Rp[\d\.\s\-–]+)", body)
             if m:
-                place.harga_text = m.group(1).strip()[:100]
+                place.harga_text = clean_icon(m.group(1).strip()[:100])
                 if not place.price_range:
                     place.price_range = place.harga_text
             
@@ -421,15 +492,25 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
             if not place.price_level:
                 m2 = re.search(r"(\$+|€+|Rp\s*[\d.,]+)", body)
                 if m2:
-                    place.price_level = m2.group(1)[:50]
+                    place.price_level = clean_icon(m2.group(1)[:50])
 
-            # Fallback scan semua yang mengandung Rp
+            # Fallback scan semua yang mengandung Rp di content (lebih lengkap)
             if not place.harga_text:
-                rps = re.findall(r"Rp\.?\s*\d[\d\.\,]*", body)
+                rps = re.findall(r"Rp\.?\s*\d[\d\.\,]*", body + " " + content[:8000])
                 if rps:
-                    place.harga_text = ", ".join(rps[:3])
-        except:
-            pass
+                    place.harga_text = clean_icon(", ".join(rps[:5]))
+                    if not place.price_range:
+                        place.price_range = place.harga_text
+            # Simpan price snippet untuk analytics
+            if place.price_level or place.harga_text:
+                place.attributes["price_raw"] = (place.price_level or "") + " | " + (place.harga_text or "")
+            # Try to extract price from embedded data (auth may expose)
+            if not place.price_level:
+                m_emb = re.search(r'"price[^"]*"\s*:\s*"([^"]+)"', content, re.I)
+                if m_emb:
+                    place.price_level = clean_icon(m_emb.group(1)[:80])
+        except Exception as e:
+            safe_print(f"[DETAIL] price error: {e}")
 
         # === 10. FOTO ===
         try:
@@ -491,21 +572,108 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
         except:
             pass
 
-        # === 12. FASILITAS / ATTRIBUTES ===
+        # === 12. FASILITAS / ATTRIBUTES (ENHANCED FOR ANALYTICS WITH AUTH) ===
         try:
-            # Cari section About / Facilities
+            # Trigger About section: klik tab "Tentang" / "About" dan scroll agar attributes ter-load (butuh login)
+            try:
+                for tab_text in ["Tentang", "About", "Overview"]:
+                    tab = page.locator(f'button:has-text("{tab_text}"), div[role="tab"]:has-text("{tab_text}")').first
+                    if await tab.count() > 0:
+                        await tab.click(timeout=1500)
+                        await page.wait_for_timeout(800)
+                        break
+                # Scroll pane detail untuk load lazy sections (Popular times, facilities)
+                await page.evaluate("() => { const el = document.querySelector('div[role=\"main\"]') || document.scrollingElement; if(el) el.scrollBy(0, 800); }")
+                await page.wait_for_timeout(1000)
+            except:
+                pass
+
             body_text = await page.inner_text("body")
-            fac_keywords = ["Parkir", "Toilet", "Wi-Fi", "Kursi roda", "AC", "Musholla", "Parking", "Restroom", "Wheelchair", "Accessible"]
+            # --- Fasilitas dasar ---
+            fac_keywords = ["Parkir", "Toilet", "Wi-Fi", "Kursi roda", "AC", "Musholla", "Parking", "Restroom", "Wheelchair", "Accessible", "WiFi", "Toilet accessible", "Lift", "Parkir gratis", "Antar-jemput", "Reservasi", "Restoran", "Bar", "Kolam", "Gym"]
             for kw in fac_keywords:
                 if kw.lower() in body_text.lower():
-                    place.fasilitas.append(kw)
-            
-            # Coba extract attributes dari button berlabel
-            attr_btns = await page.locator('div[aria-label*="About"], div:near(:text("About"))').all_inner_texts()
-            if attr_btns:
-                place.attributes["raw"] = " | ".join(attr_btns)[:1000]
-        except:
-            pass
+                    if kw not in place.fasilitas:
+                        place.fasilitas.append(kw)
+
+            # --- Extract detailed attributes dari section "About" ---
+            # Coba klik tombol "Tentang" details expanded
+            about_texts = []
+            try:
+                # Cari semua button/div yang mengandung layanan/fasilitas
+                selectors = [
+                    'div[data-attrid*="kc"]', # knowledge panel
+                    'div:has-text("Fasilitas")',
+                    'div:has-text("Amenities")',
+                    'div:has-text("Aksesibilitas")',
+                    'div:has-text("Layanan")',
+                    'button[aria-label*="About"]',
+                ]
+                for sel in selectors:
+                    loc = page.locator(sel)
+                    cnt = await loc.count()
+                    for i in range(min(cnt, 5)):
+                        try:
+                            txt = await loc.nth(i).inner_text()
+                            if txt and len(txt) > 10 and len(txt) < 2000:
+                                about_texts.append(clean_icon(txt.strip()))
+                        except:
+                            pass
+                # Also try to expand "More about" sections
+                more_btns = page.locator('button:has-text("Selengkapnya"), button:has-text("More"), button[aria-label*="more"]')
+                mc = await more_btns.count()
+                for i in range(min(mc, 2)):
+                    try:
+                        await more_btns.nth(i).click(timeout=1200)
+                        await page.wait_for_timeout(600)
+                        # re-collect
+                        txt = await page.inner_text("body")
+                        about_texts.append(clean_icon(txt[:3000]))
+                    except:
+                        pass
+            except:
+                pass
+
+            # Save to attributes analytics
+            if about_texts:
+                place.attributes["about_sections"] = about_texts[:3]
+                place.attributes["about_raw"] = " | ".join(about_texts)[:3000]
+
+            # --- Service options & Accessibility via aria-labels ---
+            try:
+                # Cari semua div dengan aria-label yang mengandung fasilitas
+                aria_fac = await page.eval_on_selector_all("[aria-label]", "els => els.map(e => e.getAttribute('aria-label')).filter(Boolean).slice(0,100)")
+                fac_from_aria = []
+                for lab in aria_fac:
+                    low = lab.lower()
+                    if any(k in low for k in ["parking", "parkir", "wheelchair", "kursi roda", "toilet", "wifi", "accessible", "aksesibilitas", "layanan", "amenities", "fasilitas", "reservasi"]):
+                        fac_from_aria.append(clean_icon(lab))
+                if fac_from_aria:
+                    place.attributes["aria_facilities"] = fac_from_aria[:15]
+                    # also merge to fasilitas list
+                    for f in fac_from_aria:
+                        if f not in place.fasilitas and len(f) < 60:
+                            place.fasilitas.append(f)
+                # Store popular-times aria if any
+                busy_aria = [a for a in aria_fac if "busy" in a.lower() or "ramai" in a.lower() or "popular" in a.lower()]
+                if busy_aria:
+                    place.attributes["busy_aria"] = busy_aria[:10]
+            except:
+                pass
+
+            # --- Coba ekstrak structured facilities dari window.APP_INITIALIZATION_STATE atau page content ---
+            try:
+                content = await page.content()
+                # Cari JSON yang mengandung amenities
+                import re as _re
+                # Pattern for facilities in embedded data
+                m = _re.search(r'"amenities"[^}]{0,300}', content, _re.I)
+                if m:
+                    place.attributes["embedded_amenities_snippet"] = m.group(0)[:800]
+            except:
+                pass
+        except Exception as e:
+            safe_print(f"[DETAIL] fasilitas error: {e}")
 
         # === 13. DESKRIPSI ===
         try:
@@ -518,6 +686,39 @@ async def extract_detail(page: Page, url: str, keyword: str = "") -> Place:
                 meta = await page.locator('meta[name="description"]').get_attribute("content")
                 if meta:
                     place.deskripsi = meta[:1000]
+        except:
+            pass
+
+        # === ANALYTICS ESSENTIALS: decision making fields ===
+        try:
+            # Hitung Skor Ketersediaan untuk RuangSela: jam buka panjang = lebih fleksibel
+            # Analytics: total jam buka per minggu, indikator underutilized
+            total_hours = 0
+            for v in place.jam_operasional.values():
+                if "24 jam" in v:
+                    total_hours += 24
+                else:
+                    m = re.search(r"(\d{1,2})[.:](\d{2}).*?[–-].*?(\d{1,2})[.:](\d{2})", v)
+                    if m:
+                        try:
+                            h1 = int(m.group(1)); m1 = int(m.group(2)); h2 = int(m.group(3)); m2 = int(m.group(4))
+                            # handle PM maybe? keep 24h
+                            diff = (h2*60+m2) - (h1*60+m1)
+                            if diff < 0: diff += 24*60
+                            total_hours += diff/60
+                        except: pass
+                    elif "Tutup" in v:
+                        total_hours += 0
+            place.attributes["analytics_total_open_hours_per_week"] = round(total_hours,1)
+            place.attributes["analytics_is_24h"] = any("24 jam" in v for v in place.jam_operasional.values())
+            place.attributes["analytics_has_weekend"] = "Sabtu" in place.jam_operasional and "Minggu" in place.jam_operasional
+            place.attributes["analytics_jam_lengkap"] = len(place.jam_operasional) == 7
+            # Fasilitas score untuk komunitas: parkir+toilet+wifi = ideal
+            fac_score = sum(1 for k in ["Parkir","Toilet","Wi-Fi","Kursi roda","AC"] if k in place.fasilitas)
+            place.attributes["analytics_facility_score"] = fac_score
+            place.attributes["analytics_facility_count"] = len(place.fasilitas)
+            # Busy hours flag untuk optimal scheduling
+            place.attributes["analytics_needs_busy_data"] = not place.attributes.get("has_busy_hours", False)
         except:
             pass
 

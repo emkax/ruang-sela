@@ -15,6 +15,7 @@ from .config import KEYWORDS, TARGET_LOCATION, TARGET_COORDS, LIMIT_TOTAL, HEADL
 from .search import search_places
 from .detail import extract_detail
 from .export import export_places
+from .auth import load_netscape_cookies
 
 async def run(limit_total: int = LIMIT_TOTAL, location: str = TARGET_LOCATION, keywords: list = None, headless: bool = HEADLESS):
     if keywords is None:
@@ -30,6 +31,14 @@ async def run(limit_total: int = LIMIT_TOTAL, location: str = TARGET_LOCATION, k
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768}
         )
+        # AUTH: load cookies if available (essential for fasilitas/busy hours)
+        try:
+            cookies = load_netscape_cookies("www.google.com_cookies.txt")
+            if cookies:
+                await context.add_cookies(cookies)
+                print(f"[AUTH] Loaded {len(cookies)} cookies for main scraper")
+        except Exception as e:
+            print(f"[AUTH] cookie load failed: {e}")
         page = await context.new_page()
 
         # Tahap 1: Search untuk kumpulkan 5 link total

@@ -19,6 +19,7 @@ from .config import KEYWORDS, DKI_WILAYAH, DKI_CENTER, DKI_ZOOM, DKI_BOUNDS, LIM
 from .search import search_places, build_search_url
 from .detail import extract_detail, clean_icon
 from .export import export_places
+from .auth import load_netscape_cookies
 
 def is_dki(place) -> bool:
     # Filter: alamat mengandung Jakarta atau DKI, atau koordinat dalam bounds
@@ -53,9 +54,16 @@ async def run_dki(limit_total: int = LIMIT_DKI_TOTAL, limit_per_keyword: int = L
         browser = await p.chromium.launch(headless=headless, args=["--disable-blink-features=AutomationControlled", "--lang=id-ID"])
         context = await browser.new_context(
             locale="id-ID",
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768}
         )
+        try:
+            cookies = load_netscape_cookies("www.google.com_cookies.txt")
+            if cookies:
+                await context.add_cookies(cookies)
+                print(f"[AUTH] Loaded {len(cookies)} cookies for DKI scale")
+        except Exception as e:
+            print(f"[AUTH] cookie load failed: {e}")
         page = await context.new_page()
 
         # FASE 1: Search - rotasi wilayah untuk diversitas DKI
