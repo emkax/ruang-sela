@@ -1,0 +1,205 @@
+"""
+IndoBERT Embedding Service — native Indo support.
+Model: indobenchmark/indobert-base-p1 (768-dim) dengan mean pooling + L2 normalize.
+Fallback: TF-IDF/hash dummy jika torch/transformers tidak tersedia (untuk testing tanpa GPU).
+"""
+import re
+import hashlib
+import math
+from typing import List, Optional
+from functools import lru_cache
+
+import numpy as np
+
+from app.config import get_settings
+
+# Try import transformers
+try:
+    from transformers import AutoTokenizer, AutoModel
+    import torch
+    HAS_TRANSFORMERS = True
+except ImportError:
+    HAS_TRANSFORMERS = False
+
+_tokenizer = None
+_model = None
+_model_loaded = False
+_model_name_loaded = None
+
+def _clean_text(text: str) -> str:
+    if not text:
+        return ""
+    # reuse clean_icon logic from scraper/detail.py:18 but simple
+    text = re.sub(r"[\ue000-\uf8ff\ue5cc\ue5cd\ue0c8]", "", text)
+    text = re.sub(r"\n\s*\n", "\n", text)
+    return text.strip()
+
+def load_model():
+    global _tokenizer, _model, _model_loaded, _model_name_loaded
+    if _model_loaded:
+        return True
+    settings = get_settings()
+    model_name = settings.model_name
+    if not HAS_TRANSFORMERS:
+        print("[EMBED] transformers not installed, using fallback dummy embeddings")
+        _model_loaded = False
+        return False
+    try:
+        print(f"[EMBED] Loading IndoBERT: {model_name}")
+        _tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, token=settings.hf_token)
+        _model = AutoModel.from_pretrained(model_name, trust_remote_code=True, token=settings.hf_token)
+        _model.eval()
+        if torch.cuda.is_available():
+            _model = _model.cuda()
+        _model_loaded = True
+        _model_name_loaded = model_name
+        print(f"[EMBED] Loaded {model_name} dim={settings.embedding_dim}")
+        return True
+    except Exception as e:
+        print(f"[EMBED] Failed to load {model_name}: {e} — fallback dummy")
+        _model_loaded = False
+        return False
+
+def is_model_loaded() -> bool:
+    return _model_loaded
+
+def mean_pooling(last_hidden_state, attention_mask):
+    # last_hidden: [batch, seq, hidden]
+    mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
+    sum_hidden = (last_hidden_state * mask_expanded).sum(dim=1)
+    sum_mask = mask_expanded.sum(dim=1).clamp(min=1e-9)
+    return sum_hidden / sum_mask
+
+def embed_texts(texts: List[str], batch_size: int = 8) -> List[List[float]]:
+    """Embed list of texts -> list of vectors (768)."""
+    settings = get_settings()
+    dim = settings.embedding_dim
+    if not texts:
+        return []
+
+    # Try real model
+    if HAS_TRANSFORMERS and (_model_loaded or load_model()):
+        try:
+            import torch
+            vectors = []
+            _model.eval()
+            with torch.no_grad():
+                for i in range(0, len(texts), batch_size):
+                    batch = [_clean_text(t) for t in texts[i:i+batch_size]]
+                    encoded = _tokenizer(batch, padding=True, truncation=True, max_length=512, return_tensors="pt")
+                    if torch.cuda.is_available():
+                        encoded = {k: v.cuda() for k, v in encoded.items()}
+                    outputs = _model(**encoded)
+                    # mean pooling
+                    pooled = mean_pooling(outputs.last_hidden_state, encoded["attention_mask"])
+                    # L2 normalize
+                    pooled = torch.nn.functional.normalize(pooled, p=2, dim=1)
+                    for vec in pooled.cpu().numpy():
+                        vectors.append(vec.tolist())
+            return vectors
+        except Exception as e:
+            print(f"[EMBED] inference error, fallback: {e}")
+
+    # Fallback dummy: hash-based deterministic embedding (for testing without model)
+    # Not semantic but consistent for API testing
+    return [dummy_embedding(t, dim) for t in texts]
+
+def embed_query(text: str) -> List[float]:
+    return embed_texts([text])[0]
+
+def dummy_embedding(text: str, dim: int = 768) -> List[float]:
+    """Deterministic pseudo-embedding from hash — fallback when model unavailable."""
+    # Use TF-style: hash tokens
+    text = _clean_text(text.lower())
+    tokens = re.findall(r"\w+", text)
+    vec = np.zeros(dim, dtype=np.float32)
+    for tok in tokens:
+        h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
+        idx = h % dim
+        # sign based on hash
+        sign = 1 if (h >> 16) % 2 == 0 else -1
+        vec[idx] += sign * (1.0 + math.log1p(len(tok)))
+    # add char ngram for robustness
+    for i in range(len(text)-2):
+        tri = text[i:i+3]
+        h = int(hashlib.md5(tri.encode()).hexdigest(), 16)
+        idx = h % dim
+        vec[idx] += 0.3
+    # L2 normalize
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec = vec / norm
+    return vec.tolist()
+
+def cosine_sim(a: List[float], b: List[float]) -> float:
+    av = np.array(a, dtype=np.float32)
+    bv = np.array(b, dtype=np.float32)
+    denom = (np.linalg.norm(av) * np.linalg.norm(bv))
+    if denom == 0:
+        return 0.0
+    return float(np.dot(av, bv) / denom)
+
+# Build content template for a place (used for embedding doc)
+def build_place_content(place: dict) -> str:
+    """Build semantic doc string for IndoBERT — Bahasa Indonesia."""
+    def get(k, d=""):
+        return place.get(k) or d
+
+    nama = get("nama", "")
+    kategori = get("kategori", "")
+    alamat = get("alamat_lengkap") or get("alamat") or ""
+    fasilitas = place.get("fasilitas") or []
+    # filter generic Restoran/Bar noise (75/75) — keep if explicitly queried but de-boost in content
+    generic = {"Restoran", "Bar"}
+    fasilitas_pos = [f for f in fasilitas if f not in generic and not f.lower().startswith("tidak memiliki")]
+    fasilitas_str = ", ".join(fasilitas_pos) if fasilitas_pos else "-"
+
+    jam_raw = get("jam_operasional_raw", "") or ""
+    # clean jam delimiter artefak
+    jam_raw = jam_raw.replace("�", "–").replace("\n", " | ")
+
+    harga = get("harga_text") or get("price_level") or "-"
+
+    popular = get("popular_times") or get("jam_ramai") or ""
+    # truncate popular to 400 chars
+    if popular and len(popular) > 600:
+        popular = popular[:600]
+    if not popular:
+        popular = "-"
+
+    reviews = place.get("reviews") or []
+    # dedup + truncate 2 reviews
+    seen = set()
+    rev_texts = []
+    for r in reviews[:3]:
+        t = (r.get("text") or "").strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        # clean icon
+        t = _clean_text(t)
+        # truncate 300
+        if len(t) > 300:
+            t = t[:300]
+        rev_texts.append(t)
+    rev_str = " | ".join(rev_texts) if rev_texts else "-"
+
+    deskripsi = _clean_text(get("deskripsi", ""))[:400] if get("deskripsi") else "-"
+
+    # analytics
+    attrs = place.get("attributes") or {}
+    total_hours = attrs.get("analytics_total_open_hours_per_week", "")
+    is24 = "24 jam" if attrs.get("analytics_is_24h") else ""
+
+    content = (
+        f"Nama: {nama}\n"
+        f"Kategori: {kategori}\n"
+        f"Alamat: {alamat}\n"
+        f"Fasilitas: {fasilitas_str}\n"
+        f"Jam operasional: {jam_raw} {is24} (total {total_hours} jam/minggu)\n"
+        f"Keramaian: {popular}\n"
+        f"Harga: {harga}\n"
+        f"Deskripsi: {deskripsi}\n"
+        f"Ulasan: {rev_str}"
+    )
+    return content
