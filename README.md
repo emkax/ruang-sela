@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FutureReady ITechno Cup Starter
 
-## Getting Started
+Starter Next.js untuk membangun solusi digital yang inklusif, berkelanjutan, mudah dipelihara, dan stabil saat live demo.
 
-First, run the development server:
+## Mulai Cepat
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Yang Sudah Tersedia
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js App Router dan TypeScript strict.
+- Struktur feature-based Clean Architecture.
+- Domain, use case, repository contract, in-memory adapter, dan placeholder Supabase.
+- Zod validation dan Server Action.
+- Loading, empty, error, not-found, dan success state.
+- Health endpoint di `/api/health`.
+- Unit test Vitest dan smoke test Playwright.
+- Dokumentasi arsitektur, database, keamanan, testing, serta demo.
 
-## Learn More
+## Langkah Kustomisasi
 
-To learn more about Next.js, take a look at the following resources:
+1. Ubah `FutureReady` menjadi nama aplikasi.
+2. Ganti fitur `example` dengan domain utama lomba.
+3. Isi latar belakang, pengguna sasaran, pembeda, dan indikator SDG.
+4. Konfigurasikan Supabase lalu ubah repository factory.
+5. Tambahkan autentikasi serta authorization.
+6. Buat screenshot desktop dan mobile pada `public/screenshots`.
+7. Lengkapi identitas tim, demo URL, dan atribusi aset.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Struktur
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+src/app          Routing dan composition root
+src/features     Modul bisnis per fitur
+src/shared       UI dan utilitas generik
+src/config       Konfigurasi tervalidasi
+docs             Arsitektur dan kesiapan lomba
+tests            Unit dan E2E
+```
 
-## Deploy on Vercel
+## Pemeriksaan Kualitas
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run typecheck
+npm run test
+npm run build
+npm run test:e2e
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Dokumentasi
+
+- `docs/architecture.md`
+- `docs/database.md`
+- `docs/security.md`
+- `docs/testing.md`
+- `docs/demo-scenario.md`
+
+## Demo
+
+- Production URL: `TODO`
+- Demo video: `TODO`
+- Akun demo: `TODO`, jangan gunakan data pribadi asli
+
+## Tim
+
+- Nama anggota dan peran: `TODO`
+- Pembagian kontribusi: `TODO`
+
+## Atribusi
+
+Cantumkan sumber API, dataset, font, ikon, gambar, dan penggunaan AI secara transparan. Pastikan seluruh lisensi mengizinkan penggunaan proyek kompetisi.
