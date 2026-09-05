@@ -1,7 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { Globe2, Share2 } from "lucide-react";
+
+function Globe2({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20" />
+      <path d="M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20" />
+    </svg>
+  );
+}
+
+function Share2({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
+}
 
 export interface FooterLink {
   label: string;
@@ -27,7 +48,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: "Platform",
     links: [
-      { label: "Cari Ruang", href: "/cari" },   
+      { label: "Cari Ruang", href: "/cari" },
       { label: "Daftarkan Ruang", href: "/daftar" },
       { label: "Acara Komunitas", href: "/acara" },
     ],

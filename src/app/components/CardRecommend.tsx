@@ -49,9 +49,7 @@ export default function CardRecommend({
             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
             {rating.toFixed(1)}
           </div>
-          <span className="text-xs font-medium text-indigo-600">
-            {areaTag}
-          </span>
+          <span className="text-xs font-medium text-indigo-600">{areaTag}</span>
         </div>
       </div>
     </Wrapper>
