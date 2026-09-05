@@ -1,5 +1,20 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Leaf, ShieldCheck } from "lucide-react";
+type IconProps = {
+  className?: string;
+  size?: number;
+  "aria-hidden"?: boolean | "true" | "false";
+};
+
+const Icon = ({ children, className, size = 24, ...props }: IconProps & { children: React.ReactNode }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    {children}
+  </svg>
+);
+
+const ArrowRight = (props: IconProps) => <Icon {...props}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></Icon>;
+const CheckCircle2 = (props: IconProps) => <Icon {...props}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></Icon>;
+const Leaf = (props: IconProps) => <Icon {...props}><path d="M11 20A7 7 0 0 1 9.8 6.1C14.5 3.3 20 4 20 4s.7 5.5-2.1 10.2A7 7 0 0 1 11 20Z" /><path d="M9 18c2.5-2.5 4.5-5 6-8" /></Icon>;
+const ShieldCheck = (props: IconProps) => <Icon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></Icon>;
 
 const highlights = [
   {
