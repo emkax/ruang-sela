@@ -242,12 +242,12 @@ export default function AdminDashboardPage() {
               );
             })}
           </div>
-          <Link
+          {/* <Link
             href="/admin/tugas"
             className="mt-6 block rounded-xl bg-[#6941C6] py-2.5 text-center text-xs font-semibold text-white"
           >
             Buka Semua Antrean Tugas
-          </Link>
+          </Link> */}
         </article>
       </section>
 
