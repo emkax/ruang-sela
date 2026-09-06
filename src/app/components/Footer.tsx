@@ -46,8 +46,8 @@ const DEFAULT_COLUMNS = [
   {
     title: "Legal",
     links: [
-      { label: "Syarat & Ketentuan", href: "/syarat" },
-      { label: "Kebijakan Privasi", href: "/privasi" },
+      // { label: "Syarat & Ketentuan", href: "/syarat" },
+      // { label: "Kebijakan Privasi", href: "/privasi" },
     ],
   },
 ] satisfies FooterColumn[];
