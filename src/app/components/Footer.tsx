@@ -31,16 +31,16 @@ const DEFAULT_COLUMNS = [
     title: "Platform",
     links: [
       { label: "Cari Ruang", href: "/cari" },
-      { label: "Daftarkan Ruang", href: "/daftar" },
-      { label: "Acara Komunitas", href: "/acara" },
+      // { label: "Daftarkan Ruang", href: "/daftar" },
+      // { label: "Acara Komunitas", href: "/acara" },
     ],
   },
   {
     title: "Tentang",
     links: [
-      { label: "Kisah Kami", href: "/tentang" },
+      // { label: "Kisah Kami", href: "/tentang" },
       { label: "Pusat Bantuan", href: "/bantuan" },
-      { label: "Kontak", href: "/kontak" },
+      // { label: "Kontak", href: "/kontak" },
     ],
   },
   {
