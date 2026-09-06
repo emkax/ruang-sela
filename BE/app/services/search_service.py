@@ -3,8 +3,6 @@ import math
 import time
 from typing import List, Dict, Any, Optional, Tuple
 
-import numpy as np
-
 from fastapi import HTTPException
 
 from app.services.embed_service import embed_query, cosine_sim, build_place_content, embed_texts

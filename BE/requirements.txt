@@ -4,11 +4,10 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 python-multipart==0.0.9
 supabase>=2.15.0
-google-generativeai==0.8.4
-numpy==1.26.4
 openai==1.52.0
 httpx==0.27.2
 python-dotenv==1.0.1
 mangum==0.17.0
-# NOTE: torch + transformers intentionally EXCLUDED (Vercel 250MB limit).
+# NOTE: torch + transformers + numpy intentionally EXCLUDED (Vercel 250MB limit).
+# Google Gemini via direct REST (httpx), numpy optional pure-Python fallback.
 # For local embedding jobs, also install: pip install -r requirements.ml.txt

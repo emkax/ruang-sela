@@ -1,12 +1,17 @@
 """
-LLM Service — WAJIB calling API Google AI Studio (Gemini 2.5 Flash).
+LLM Service — calling API Google AI Studio (Gemini 2.5 Flash) via plain HTTP.
 Jika tidak ada API key maka tidak jalan (raise 503). Tidak ada fallback heuristic untuk prod.
 Model: gemini-2.5-flash (atau gemini-2.5-pro jika butuh reasoning lebih).
 API Key: GEMINI_API_KEY atau GOOGLE_API_KEY dari https://aistudio.google.com/app/apikey
+
+Uses the Gemini REST API directly through `httpx` instead of the
+`google-generativeai` SDK, which pulls in heavy deps (googleapiclient,
+grpcio, protobuf) that blow past Vercel's ~250MB serverless limit.
 """
 import re
 import os
 import json
+import httpx
 from typing import Dict, Any, Optional
 
 from fastapi import HTTPException
@@ -68,17 +73,6 @@ def llm_expand_query(data_text: str, profile: Optional[Dict[str, Any]] = None) -
         raise HTTPException(status_code=503, detail="LLM API key not configured (GEMINI_API_KEY / GOOGLE_API_KEY wajib untuk Gemini 2.5) - calling API tidak jalan")
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        # Gunakan gemini-2.5-flash (cepat, murah) atau gemini-2.5-pro
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 512,
-                "response_mime_type": "application/json",
-            },
-        )
         prompt = f"""
 Kamu adalah parser intent pencarian ruang. Query: "{data_text}"
 Profile user: {profile or {}}
@@ -86,8 +80,27 @@ Tugas: Ekstrak intent JSON dengan key: needs_ac (bool), needs_parking (bool), vi
 Contoh: "ruangan AC parkir lega kosong jam 12" -> {{"needs_ac": true, "needs_parking": true, "vibe_lega": true, "empty": true, "hour": 12, "expanded_query": "ruangan ber-AC dengan parkir luas dan sepi pada jam 12 siang"}}
 Hanya return JSON valid tanpa markdown.
 """
-        resp = model.generate_content(prompt)
-        txt = (resp.text or "").strip()
+        # Call Gemini REST API directly (no heavy google-generativeai SDK).
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 512,
+                "responseMimeType": "application/json",
+            },
+        }
+        with httpx.Client(timeout=60) as client:
+            resp = client.post(url, params={"key": api_key}, json=payload)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=503, detail=f"Gemini API HTTP {resp.status_code}: {resp.text[:300]} - calling API tidak jalan")
+        data = resp.json()
+        candidates = data.get("candidates") or []
+        if not candidates:
+            raise HTTPException(status_code=503, detail="Gemini API return empty candidates")
+        txt = (candidates[0].get("content", {}).get("parts") or [{}])[0].get("text") or ""
+        txt = txt.strip()
         # bersihkan markdown ```json wrapper jika ada
         if txt.startswith("```"):
             txt = re.sub(r"^```(?:json)?\s*", "", txt)

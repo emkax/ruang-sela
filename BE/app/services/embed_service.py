@@ -9,9 +9,15 @@ import math
 from typing import List, Optional
 from functools import lru_cache
 
-import numpy as np
-
 from app.config import get_settings
+
+# numpy is optional on Vercel (kept out to stay under the 250MB serverless
+# limit). When absent, dummy_embedding/cosine_sim fall back to pure-Python.
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 
 # Force calling API for vector - transformers + torch wajib, no dummy fallback
 try:
@@ -107,7 +113,10 @@ def dummy_embedding(text: str, dim: int = 768) -> List[float]:
     # Use TF-style: hash tokens
     text = _clean_text(text.lower())
     tokens = re.findall(r"\w+", text)
-    vec = np.zeros(dim, dtype=np.float32)
+    if HAS_NUMPY:
+        vec = np.zeros(dim, dtype=np.float32)
+    else:
+        vec = [0.0] * dim
     for tok in tokens:
         h = int(hashlib.md5(tok.encode()).hexdigest(), 16)
         idx = h % dim
@@ -121,18 +130,36 @@ def dummy_embedding(text: str, dim: int = 768) -> List[float]:
         idx = h % dim
         vec[idx] += 0.3
     # L2 normalize
-    norm = np.linalg.norm(vec)
-    if norm > 0:
-        vec = vec / norm
-    return vec.tolist()
+    if HAS_NUMPY:
+        norm = float(np.linalg.norm(vec))
+        if norm > 0:
+            vec = (vec / norm).tolist()
+        else:
+            vec = vec.tolist()
+    else:
+        norm = math.sqrt(sum(x * x for x in vec))
+        if norm > 0:
+            vec = [x / norm for x in vec]
+    return vec
 
 def cosine_sim(a: List[float], b: List[float]) -> float:
-    av = np.array(a, dtype=np.float32)
-    bv = np.array(b, dtype=np.float32)
-    denom = (np.linalg.norm(av) * np.linalg.norm(bv))
+    if HAS_NUMPY:
+        av = np.array(a, dtype=np.float32)
+        bv = np.array(b, dtype=np.float32)
+        denom = (np.linalg.norm(av) * np.linalg.norm(bv))
+        if denom == 0:
+            return 0.0
+        return float(np.dot(av, bv) / denom)
+    # pure-Python fallback
+    if len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    denom = na * nb
     if denom == 0:
         return 0.0
-    return float(np.dot(av, bv) / denom)
+    return dot / denom
 
 # Build content template for a place (used for embedding doc)
 def build_place_content(place: dict) -> str:
