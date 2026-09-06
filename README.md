@@ -4,12 +4,12 @@
   ### [Tagline Singkat dan Menarik]
   
   [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Site-success?style=for-the-badge)](https://[URL_DEMO])
-  [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://[URL_REPO])
+  [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/sayyidoliem/ruang-sela)
   [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
   
   **Submission for ITECHNO CUP 2026 - Web Development**
   
-  **By [Nama Tim]**
+  **By kita ikut lomba ITechnoCup soalnya lagi gabut aja sih**
   
 </div>
 
@@ -35,11 +35,9 @@
 
 | Nama                 | Peran                               | GitHub                                       |
 | -------------------- | ----------------------------------- | -------------------------------------------- |
-| **[Nama Lengkap 1]** | Project Lead & Full Stack Developer | [GitHub](https://github.com/[username1])     |
-| **[Nama Lengkap 2]** | Frontend Developer                  | [GitHub](https://github.com/[username2])     |
-| **[Nama Lengkap 3]** | Backend Developer                   | [GitHub](https://github.com/[username3])     |
-| **[Nama Lengkap 4]** | UI/UX Designer                      | [GitHub](https://github.com/[username4])     |
-| **[Nama Lengkap 4]** | UI/UX Designer                      | [@username4](https://github.com/[username4]) |
+| **Sayyid Muhammad Muslim As'ad Sunarko** | Project Lead & Front-end Developer | [GitHub](https://github.com/[username1])     |
+| **Michael Kristianto** | Back-end Developer                  | [GitHub](https://github.com/[username2])     |
+| **Muhammad Ryan Apriansyah** | UI/UX Designer & Front-end Developer                   | [GitHub](https://github.com/[username3])     |
 
 ---
 
