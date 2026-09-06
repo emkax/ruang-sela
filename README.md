@@ -1,6 +1,6 @@
 <div align="center">
   
-  # [NAMA PROYEK] 
+  # RuangSela 
   ### [Tagline Singkat dan Menarik]
   
   [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Site-success?style=for-the-badge)](https://[URL_DEMO])
@@ -36,8 +36,8 @@
 | Nama                 | Peran                               | GitHub                                       |
 | -------------------- | ----------------------------------- | -------------------------------------------- |
 | **Sayyid Muhammad Muslim As'ad Sunarko** | Project Lead & Front-end Developer | [GitHub](https://github.com/[username1])     |
-| **Michael Kristianto** | Back-end Developer                  | [GitHub](https://github.com/[username2])     |
-| **Muhammad Ryan Apriansyah** | UI/UX Designer & Front-end Developer                   | [GitHub](https://github.com/[username3])     |
+| **Michael Kristianto** | Back-end Developer                  | [GitHub](https://github.com/emkax)     |
+| **Muhammad Ryan Apriansyah** | UI/UX Designer & Front-end Developer                   | [GitHub](https://github.com/ryanocks)     |
 
 ---
 
@@ -384,6 +384,6 @@ Proyek ini dilisensikan di bawah [MIT License](LICENSE) - lihat file LICENSE unt
 
 <div align="center">
 
-**Made with ❤️ by [Nama Tim] for ITECHNO CUP 2026**
+**Made with ❤️ by kita ikut lomba ITechnoCup soalnya lagi gabut aja sih for ITECHNO CUP 2026**
 
 </div>
