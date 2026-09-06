@@ -35,13 +35,13 @@ const DEFAULT_LINKS = [
     label: "Cari Tempat",
     href: "/cari",
   },
-  {
-    label: "Kegiatan",
-    href: "/kegiatan",
-  },
+  // {
+  //   label: "Kegiatan",
+  //   href: "/kegiatan",
+  // },
   {
     label: "Pengajuan Saya",
-    href: "/bookin",
+    href: "/booking",
   },
 ] satisfies NavLink[];
 
