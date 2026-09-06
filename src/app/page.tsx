@@ -22,6 +22,7 @@ const Trophy = icon("M8 21h8M12 17v4M7 4H4v2a5 5 0 0 0 5 5m8-7h3v2a5 5 0 0 1-5 5
 const Users = icon("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87");
 
 import Footer from "@/app/components/Footer";
+import Navbar from "./components/Navbar";
 
 export const metadata: Metadata = {
   title: "RuangSela — Temukan Ruang Komunitas Terlengkap",
@@ -164,41 +165,7 @@ const impactMetrics = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white text-slate-800 antialiased selection:bg-violet-500 selection:text-white">
-      <header className="sticky top-0 z-50 border-b border-purple-50 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link
-            href="#beranda"
-            className="text-2xl font-extrabold tracking-tight text-violet-600"
-          >
-            Ruang<span className="text-violet-800">Sela</span>
-          </Link>
-
-          <nav
-            aria-label="Menu utama"
-            className="hidden items-center gap-8 md:flex"
-          >
-            {navigationLinks.map((link, index) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={
-                  index === 0
-                    ? "relative text-sm font-semibold text-violet-600 after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-full after:bg-violet-600"
-                    : "text-sm font-medium text-slate-600 transition-colors hover:text-violet-600"
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <a
-            href="/masuk"
-            className="hidden rounded-xl bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 sm:inline-flex"
-          >
-            Masuk
-          </a>
-        </div>
-      </header>
+    <Navbar/>
 
       <main>
         <section
