@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import CardAvailable from "@/app/components/CardAvailable";
 import SearchAndFilter from "./SearchAndFilter";
 import SearchMap from "./SearchMap";
 import type { Space } from "../types/space";
+import { api, type LocationDetail } from "@/shared/lib/api";
+import { mapLocationToSpace } from "../data/map-space";
 
 interface SpaceSearchContentProps {
   spaces: Space[];
@@ -14,14 +16,17 @@ interface SpaceSearchContentProps {
 }
 
 export default function SpaceSearchContent({
-  spaces,
+  spaces: initialSpaces,
   totalCount,
 }: SpaceSearchContentProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
+  const [count, setCount] = useState(totalCount ?? initialSpaces.length);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   const filteredSpaces = useMemo(() => {
     const normalizedQuery = submittedQuery.trim().toLocaleLowerCase("id-ID");
@@ -33,6 +38,63 @@ export default function SpaceSearchContent({
         .includes(normalizedQuery),
     );
   }, [spaces, submittedQuery]);
+
+  const fetchWithPhotos = async (
+    placeIds: string[],
+  ): Promise<LocationDetail[]> => {
+    const results = await Promise.allSettled(
+      placeIds.slice(0, 30).map((id) =>
+        api.locationDetail(id, { timeoutMs: 10000 }),
+      ),
+    );
+    return results
+      .filter((r): r is PromiseFulfilledResult<LocationDetail> => r.status === "fulfilled")
+      .map((r) => r.value);
+  };
+
+  const handleSubmit = () => {
+    startTransition(async () => {
+      setSubmittedQuery(query);
+      if (!query.trim()) return;
+      try {
+        const locationResponse = await api.locations({ limit: 30 });
+        const q = query.trim().toLocaleLowerCase("id-ID");
+        const filtered = locationResponse.data.filter(
+          (loc) =>
+            (loc.nama || "").toLocaleLowerCase("id-ID").includes(q) ||
+            (loc.kategori || "").toLocaleLowerCase("id-ID").includes(q) ||
+            (loc.alamat || "").toLocaleLowerCase("id-ID").includes(q) ||
+            (loc.fasilitas || []).some((f) =>
+              f.toLocaleLowerCase("id-ID").includes(q),
+            ),
+        );
+        const details = await fetchWithPhotos(
+          filtered.map((l) => l.place_id),
+        );
+        const detailMap = new Map(details.map((d) => [d.place_id || d.id, d]));
+        const mapped = filtered.map((loc, index) => {
+          const space = mapLocationToSpace(loc, index);
+          const detail = detailMap.get(loc.place_id);
+          if (detail?.foto_urls?.[0]) {
+            space.imageSrc = detail.foto_urls[0];
+          }
+          return space;
+        });
+        setSpaces(mapped);
+        setCount(mapped.length);
+      } catch {
+        setSpaces(initialSpaces);
+        setCount(totalCount ?? initialSpaces.length);
+      }
+    });
+  };
+
+  const handleReset = () => {
+    setQuery("");
+    setSubmittedQuery("");
+    setSpaces(initialSpaces);
+    setCount(totalCount ?? initialSpaces.length);
+  };
 
   const toggleFavorite = (spaceId: string, next: boolean) => {
     setFavoriteIds((current) => {
@@ -48,7 +110,8 @@ export default function SpaceSearchContent({
         <SearchAndFilter
           query={query}
           onQueryChange={setQuery}
-          onSubmit={() => setSubmittedQuery(query)}
+          onSubmit={handleSubmit}
+          loading={isPending}
         />
         <div className="flex-1 space-y-6 overflow-y-auto p-6 [scrollbar-color:#cbd5e1_#f8fafc] [scrollbar-width:thin] lg:px-10">
           <div className="space-y-1">
@@ -56,9 +119,11 @@ export default function SpaceSearchContent({
               Ruang Tersedia
             </h1>
             <p className="text-sm text-slate-500">
-              {submittedQuery
-                ? `Menampilkan ${filteredSpaces.length} hasil untuk “${submittedQuery}”`
-                : `Menampilkan ${totalCount ?? spaces.length} ruang di area Anda`}
+              {isPending
+                ? "Mencari ruang..."
+                : submittedQuery
+                  ? `Menampilkan ${filteredSpaces.length} hasil untuk “${submittedQuery}”`
+                  : `Menampilkan ${count} ruang di area Anda`}
             </p>
           </div>
 
@@ -96,10 +161,7 @@ export default function SpaceSearchContent({
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  setQuery("");
-                  setSubmittedQuery("");
-                }}
+                onClick={handleReset}
                 className="mt-5 rounded-lg bg-[#6347EB] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#583cd9]"
               >
                 Hapus pencarian
