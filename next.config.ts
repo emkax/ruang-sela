@@ -6,6 +6,18 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   typedRoutes: true,
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+
+        hostname: "lh3.googleusercontent.com",
+
+        pathname: "/aida-public/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
