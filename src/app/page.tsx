@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import type { Route } from "next";
-import type { ComponentType, SVGProps } from "react";
-import Image from "next/image";
+import type { SVGProps } from "react";
 import Link from "next/link";
 
 import Footer from "@/app/components/Footer";
@@ -9,9 +7,7 @@ import Navbar from "./components/Navbar";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
-type SpaceIcon = ComponentType<IconProps>;
-
-const createIcon = (displayName: string, path: string): SpaceIcon => {
+function createIcon(displayName: string, path: string) {
   function IconComponent(props: IconProps) {
     return (
       <svg
@@ -31,7 +27,7 @@ const createIcon = (displayName: string, path: string): SpaceIcon => {
   IconComponent.displayName = displayName;
 
   return IconComponent;
-};
+}
 
 const ArrowRight = createIcon("ArrowRight", "M5 12h14m-6-6 6 6-6 6");
 
@@ -197,10 +193,22 @@ const recommendedSpaces = [
 ] as const;
 
 const impactMetrics = [
-  { value: "15k+", label: "Ruang Tersedia" },
-  { value: "50k+", label: "Komunitas Terbantu" },
-  { value: "120+", label: "Kota" },
-  { value: "4.9/5", label: "Rata-rata Rating" },
+  {
+    value: "15k+",
+    label: "Ruang Tersedia",
+  },
+  {
+    value: "50k+",
+    label: "Komunitas Terbantu",
+  },
+  {
+    value: "120+",
+    label: "Kota",
+  },
+  {
+    value: "4.9/5",
+    label: "Rata-rata Rating",
+  },
 ] as const;
 
 export default function HomePage() {
@@ -226,35 +234,31 @@ export default function HomePage() {
               kegiatan bermakna.
             </p>
 
-            <div
+            <form
               id="cari-tempat"
-              className="mx-auto mb-8 max-w-2xl scroll-mt-28"
+              action="/cari"
+              className="mx-auto mb-8 flex max-w-2xl scroll-mt-28 items-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
             >
-              <form
-                action="/cari"
-                className="flex items-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
+              <Search
+                aria-hidden="true"
+                className="ml-3 h-5 w-5 shrink-0 text-slate-400"
+              />
+
+              <input
+                name="q"
+                type="search"
+                aria-label="Cari ruang, lokasi, atau kegiatan"
+                placeholder="Cari ruang, lokasi, atau kegiatan..."
+                className="w-full border-0 bg-transparent px-3 py-2 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:ring-0 sm:text-base"
+              />
+
+              <button
+                type="submit"
+                className="shrink-0 rounded-xl bg-violet-700 px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-800 active:scale-95"
               >
-                <Search
-                  aria-hidden="true"
-                  className="ml-3 h-5 w-5 shrink-0 text-slate-400"
-                />
-
-                <input
-                  name="q"
-                  type="search"
-                  aria-label="Cari ruang, lokasi, atau kegiatan"
-                  placeholder="Cari ruang, lokasi, atau kegiatan..."
-                  className="w-full border-0 bg-transparent px-3 py-2 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:ring-0 sm:text-base"
-                />
-
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-xl bg-violet-700 px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-800 active:scale-95"
-                >
-                  Cari
-                </button>
-              </form>
-            </div>
+                Cari
+              </button>
+            </form>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
@@ -267,7 +271,7 @@ export default function HomePage() {
 
               <Link
                 href="#kegiatan"
-                className="inline-flex items-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-violet-300 hover:text-violet-700"
+                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-violet-200 hover:text-violet-700"
               >
                 Lihat Kegiatan
               </Link>
@@ -293,8 +297,9 @@ export default function HomePage() {
 
                 return (
                   <Link
-                    href={`/kategori/${category.slug}` as Route}
-                    className="group flex flex-col items-center rounded-2xl border border-slate-100 p-5 text-center transition-shadow hover:shadow-md"
+                    key={category.slug}
+                    href={`/cari?kategori=${category.slug}`}
+                    className="group flex flex-col items-center rounded-2xl border border-slate-100 p-4 text-center transition-shadow hover:shadow-md"
                   >
                     <span
                       className={`mb-3 rounded-xl p-3 transition-colors ${category.iconClassName}`}
@@ -338,11 +343,10 @@ export default function HomePage() {
                   className="card-shadow group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className="relative h-56 overflow-hidden">
-                    <Image
+                    <img
                       src={space.imageSrc}
                       alt={space.imageAlt}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      loading="lazy"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
 
@@ -366,6 +370,7 @@ export default function HomePage() {
                           aria-hidden="true"
                           className="h-4 w-4 text-slate-400"
                         />
+
                         <span>{space.location}</span>
                       </div>
                     </div>
@@ -376,6 +381,7 @@ export default function HomePage() {
                         className="flex items-center gap-1 font-bold text-amber-500"
                       >
                         <span aria-hidden="true">★</span>
+
                         <span className="font-semibold text-slate-700">
                           {space.rating.toFixed(1)}
                         </span>
@@ -420,11 +426,10 @@ export default function HomePage() {
                   className="card-shadow group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className="relative h-44 overflow-hidden">
-                    <Image
+                    <img
                       src={space.imageSrc}
                       alt={space.imageAlt}
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      loading="lazy"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
@@ -449,6 +454,7 @@ export default function HomePage() {
                         className="flex items-center gap-1 font-bold text-amber-500"
                       >
                         <span aria-hidden="true">★</span>
+
                         <span className="font-semibold text-slate-700">
                           {space.rating.toFixed(1)}
                         </span>
