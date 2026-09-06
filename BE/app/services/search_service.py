@@ -5,48 +5,38 @@ from typing import List, Dict, Any, Optional, Tuple
 
 import numpy as np
 
-from app.services.embed_service import embed_query, cosine_sim, build_place_content, embed_texts
-from app.database import fetch_places
+from fastapi import HTTPException
 
-# Precompute embeddings cache for local mode (lazy)
-_PLACE_EMB_CACHE: Optional[Dict[str, List[float]]] = None
+from app.services.embed_service import embed_query, cosine_sim, build_place_content, embed_texts
+from app.database import fetch_places, get_supabase
+
+# Cache untuk content tetap (untuk evidence), tapi vector wajib Supabase
 _PLACE_CONTENT_CACHE: Optional[Dict[str, str]] = None
 
-def _ensure_local_embeddings():
-    global _PLACE_EMB_CACHE, _PLACE_CONTENT_CACHE
-    if _PLACE_EMB_CACHE is not None:
+def _ensure_content_cache():
+    global _PLACE_CONTENT_CACHE
+    if _PLACE_CONTENT_CACHE is not None:
         return
-    places = fetch_places()
-    # Build content
+    places = fetch_places()  # wajib Supabase relational
     contents = {}
     for p in places:
         pid = p.get("place_id") or p.get("nama") or str(id(p))
         contents[pid] = build_place_content(p)
-    # Try to load precomputed from file to avoid recompute
-    try:
-        import pathlib, json
-        emb_path = pathlib.Path("BE/eval/embeddings.json")
-        alt = pathlib.Path("eval/embeddings.json")
-        pre = None
-        for cand in [emb_path, alt]:
-            if cand.exists():
-                pre = json.loads(cand.read_text(encoding="utf-8"))
-                break
-        if pre and len(pre) == len(contents):
-            _PLACE_CONTENT_CACHE = contents
-            _PLACE_EMB_CACHE = pre
-            print(f"[SEARCH] Loaded precomputed embeddings {len(pre)}")
-            return
-    except Exception as e:
-        print(f"[SEARCH] precomputed load failed: {e}")
-
-    # Compute on-the-fly (fallback dummy or real IndoBERT)
-    print(f"[SEARCH] Computing embeddings for {len(contents)} places (first run may take time)...")
-    texts = list(contents.values())
-    pids = list(contents.keys())
-    vecs = embed_texts(texts, batch_size=8)
-    _PLACE_EMB_CACHE = {pid: vec for pid, vec in zip(pids, vecs)}
     _PLACE_CONTENT_CACHE = contents
+
+def _vector_search_supabase(q_vec: List[float], limit_k: int = 50) -> List[Dict[str, Any]]:
+    """WAJIB Supabase vector pgvector via RPC hybrid_search. Jika tidak ada maka raise."""
+    sb = get_supabase()  # raise 500 jika tidak configured
+    try:
+        # RPC expects vector(768) - supabase-py akan serialisasi list float
+        res = sb.rpc("hybrid_search", {"q": q_vec, "limit_k": limit_k}).execute()
+        if res.data is None:
+            raise HTTPException(status_code=500, detail="Supabase vector hybrid_search return null - check place_embeddings")
+        return res.data  # list of {place_id uuid, nama, kategori, alamat, lat, lng, rating, sim}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supabase vector calling API gagal (hybrid_search RPC): {e} - vector DB wajib")
 
 def parse_hour_from_text(text: str) -> Optional[int]:
     if not text:
@@ -180,45 +170,70 @@ def hybrid_search(
     user_lng: Optional[float] = None,
     radius_m: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
+    """WAJIB calling API: LLM sudah di-expand sebelum ini, DB relational Supabase, Vector Supabase pgvector."""
     start = time.time()
-    _ensure_local_embeddings()
+    _ensure_content_cache()
+    # Relational wajib
     places = fetch_places()
     if not places:
-        return []
+        raise HTTPException(status_code=500, detail="Supabase places kosong - import BE/schema/places.csv dulu")
+    # Map places by uuid and by place_id text for join dengan vector RPC
+    by_uuid = {p.get("id"): p for p in places if p.get("id")}
+    by_place_id = {p.get("place_id"): p for p in places if p.get("place_id")}
+    # juga mapping uuid -> content untuk evidence
+    contents = _PLACE_CONTENT_CACHE or {}
 
     query_lower = query_text.lower()
-    # auto parse hour if not given but text contains jam
     if target_hour is None:
         target_hour = parse_hour_from_text(query_text)
 
-    # Embed query
-    q_vec = embed_query(query_text)
+    # Vector wajib - embed query via BertTokenizer + AutoModel
+    q_vec = embed_query(query_text)  # raise jika model tidak ada
 
-    # Try supabase vector search first if available (not implemented for local fallback)
-    # For local, compute cosine manually for all
-    scored = []
-    for p in places:
-        pid = p.get("place_id") or p.get("nama")
-        content = _PLACE_CONTENT_CACHE.get(pid, build_place_content(p)) if _PLACE_CONTENT_CACHE else build_place_content(p)
-        p_vec = _PLACE_EMB_CACHE.get(pid) if _PLACE_EMB_CACHE else None
-        if p_vec is None:
-            # fallback single
-            p_vec = embed_texts([content])[0]
-        sim = cosine_sim(q_vec, p_vec)
-
-        # Mode handling
-        if mode == "relational":
-            # relational approx: keyword overlap
-            # simple: count matching tokens
-            sim = 0.0  # ignore vector
-            # boost if query tokens in content
+    # Relational mode: tetap via Supabase keyword, tapi tanpa vector
+    if mode == "relational":
+        # keyword overlap via Supabase relational (tidak pakai vector)
+        scored = []
+        for p in places:
+            pid = p.get("place_id") or p.get("nama")
+            content = contents.get(pid, build_place_content(p))
             qtokens = set(re.findall(r"\w+", query_lower))
             ctokens = set(re.findall(r"\w+", content.lower()))
             overlap = len(qtokens & ctokens) / max(1, len(qtokens))
-            sim = overlap  # 0-1
-        elif mode == "vector":
-            # pure vector, no bonuses
-            pass
+            sim = overlap
+            scored.append({
+                "place": p,
+                "content": content,
+                "sim": sim,
+                "facility_bonus": 0.0,
+                "busy_bonus": 0.0,
+                "geo_bonus": 0.0,
+                "final": sim,
+                "busy_pct": None,
+                "distance_km": None,
+                "evidence": {"mode": "relational"},
+            })
+        scored.sort(key=lambda x: x["final"], reverse=True)
+        return scored[:top_k]
+
+    # Vector / Hybrid via Supabase pgvector RPC
+    limit_k = max(top_k * 3, 50) if mode == "hybrid" else top_k
+    vector_rows = _vector_search_supabase(q_vec, limit_k=limit_k)
+    # vector_rows: [{place_id uuid, nama, kategori, alamat, lat, lng, rating, sim}]
+    # Build scored dengan sim dari Supabase, lalu tambahkan bonus facility/busy/geo
+    scored = []
+    for row in vector_rows:
+        # row place_id adalah uuid places.id
+        uuid_key = row.get("place_id")
+        p = by_uuid.get(uuid_key) or by_place_id.get(row.get("place_id"))
+        if not p:
+            # fallback cari by nama jika uuid tidak match (untuk data lama)
+            p = next((x for x in places if x.get("nama") == row.get("nama")), None)
+        if not p:
+            continue
+        pid = p.get("place_id") or p.get("nama")
+        content = contents.get(pid, build_place_content(p))
+        sim = float(row.get("sim") or 0.0)
 
         # hybrid bonuses (only for hybrid)
         facility_bonus = 0.0

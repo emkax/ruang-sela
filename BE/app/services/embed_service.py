@@ -13,13 +13,14 @@ import numpy as np
 
 from app.config import get_settings
 
-# Try import transformers
+# Force calling API for vector - transformers + torch wajib, no dummy fallback
 try:
-    from transformers import AutoTokenizer, AutoModel
+    from transformers import BertTokenizer, AutoModel
     import torch
     HAS_TRANSFORMERS = True
-except ImportError:
+except ImportError as e:
     HAS_TRANSFORMERS = False
+    _IMPORT_ERROR = str(e)
 
 _tokenizer = None
 _model = None
@@ -41,24 +42,22 @@ def load_model():
     settings = get_settings()
     model_name = settings.model_name
     if not HAS_TRANSFORMERS:
-        print("[EMBED] transformers not installed, using fallback dummy embeddings")
-        _model_loaded = False
-        return False
+        raise RuntimeError(f"[EMBED] transformers/torch not installed: {_IMPORT_ERROR} - vector DB calling API wajib")
     try:
-        print(f"[EMBED] Loading IndoBERT: {model_name}")
-        _tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, token=settings.hf_token)
-        _model = AutoModel.from_pretrained(model_name, trust_remote_code=True, token=settings.hf_token)
+        print(f"[EMBED] Loading IndoBERT: {model_name} with BertTokenizer + AutoModel")
+        # Sesuai instruksi: BertTokenizer + AutoModel dari indobenchmark/indobert-base-p1
+        _tokenizer = BertTokenizer.from_pretrained(model_name, trust_remote_code=True, **({"token": settings.hf_token} if settings.hf_token else {}))
+        _model = AutoModel.from_pretrained(model_name, trust_remote_code=True, **({"token": settings.hf_token} if settings.hf_token else {}))
         _model.eval()
         if torch.cuda.is_available():
             _model = _model.cuda()
         _model_loaded = True
         _model_name_loaded = model_name
-        print(f"[EMBED] Loaded {model_name} dim={settings.embedding_dim}")
+        print(f"[EMBED] Loaded {model_name} dim={settings.embedding_dim} (BertTokenizer)")
         return True
     except Exception as e:
-        print(f"[EMBED] Failed to load {model_name}: {e} — fallback dummy")
         _model_loaded = False
-        return False
+        raise RuntimeError(f"[EMBED] Failed to load {model_name} via BertTokenizer/AutoModel: {e} - vector calling API wajib, tidak ada fallback")
 
 def is_model_loaded() -> bool:
     return _model_loaded
@@ -71,38 +70,34 @@ def mean_pooling(last_hidden_state, attention_mask):
     return sum_hidden / sum_mask
 
 def embed_texts(texts: List[str], batch_size: int = 8) -> List[List[float]]:
-    """Embed list of texts -> list of vectors (768)."""
+    """Embed list of texts -> list of vectors (768). Wajib calling API Supabase Vector + IndoBERT, no fallback."""
     settings = get_settings()
     dim = settings.embedding_dim
     if not texts:
         return []
 
-    # Try real model
-    if HAS_TRANSFORMERS and (_model_loaded or load_model()):
-        try:
-            import torch
-            vectors = []
-            _model.eval()
-            with torch.no_grad():
-                for i in range(0, len(texts), batch_size):
-                    batch = [_clean_text(t) for t in texts[i:i+batch_size]]
-                    encoded = _tokenizer(batch, padding=True, truncation=True, max_length=512, return_tensors="pt")
-                    if torch.cuda.is_available():
-                        encoded = {k: v.cuda() for k, v in encoded.items()}
-                    outputs = _model(**encoded)
-                    # mean pooling
-                    pooled = mean_pooling(outputs.last_hidden_state, encoded["attention_mask"])
-                    # L2 normalize
-                    pooled = torch.nn.functional.normalize(pooled, p=2, dim=1)
-                    for vec in pooled.cpu().numpy():
-                        vectors.append(vec.tolist())
-            return vectors
-        except Exception as e:
-            print(f"[EMBED] inference error, fallback: {e}")
+    # Wajib model - tidak ada fallback dummy
+    if not HAS_TRANSFORMERS:
+        raise RuntimeError(f"[EMBED] transformers/torch not installed - vector DB wajib: {_IMPORT_ERROR}")
+    # ensure model loaded (akan raise jika gagal)
+    if not _model_loaded:
+        load_model()
 
-    # Fallback dummy: hash-based deterministic embedding (for testing without model)
-    # Not semantic but consistent for API testing
-    return [dummy_embedding(t, dim) for t in texts]
+    import torch
+    vectors = []
+    _model.eval()
+    with torch.no_grad():
+        for i in range(0, len(texts), batch_size):
+            batch = [_clean_text(t) for t in texts[i:i+batch_size]]
+            encoded = _tokenizer(batch, padding=True, truncation=True, max_length=512, return_tensors="pt")
+            if torch.cuda.is_available():
+                encoded = {k: v.cuda() for k, v in encoded.items()}
+            outputs = _model(**encoded)
+            pooled = mean_pooling(outputs.last_hidden_state, encoded["attention_mask"])
+            pooled = torch.nn.functional.normalize(pooled, p=2, dim=1)
+            for vec in pooled.cpu().numpy():
+                vectors.append(vec.tolist())
+    return vectors
 
 def embed_query(text: str) -> List[float]:
     return embed_texts([text])[0]

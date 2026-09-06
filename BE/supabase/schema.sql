@@ -1,5 +1,6 @@
 -- Supabase schema for RuangSela hybrid search
--- Enable pgvector
+-- Enable PostGIS (untuk geography) + pgvector
+create extension if not exists postgis;
 create extension if not exists vector;
 
 -- Places core from scraper/models.py:5
