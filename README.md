@@ -243,31 +243,183 @@ Deployment      : Vercel
 
 ### System Architecture
 
-```
- 
+```mermaid
+graph TB
+    subgraph Client["Frontend (Browser)"]
+        UI[Next.js 15 + React 19]
+        MapComp[Leaflet Map]
+        SearchComp[Search Bar]
+    end
+
+    subgraph Vercel_FE["Vercel — Frontend"]
+        SSR[Server-Side Rendering]
+    end
+
+    subgraph Vercel_BE["Vercel — Backend"]
+        API[FastAPI REST API]
+        LLM[LLM Service<br/>OpenAI / Gemini]
+        Embed[Embedding Service<br/>IndoBERT]
+        SearchSvc[Hybrid Search]
+    end
+
+    subgraph Supabase["Supabase"]
+        PG[(PostgreSQL + pgvector)]
+        Auth[Auth Service]
+    end
+
+    subgraph External["External Services"]
+        OSM[OpenStreetMap Tiles]
+        HuggingFace[HuggingFace<br/>IndoBERT]
+        OpenAI_API[OpenAI API]
+        Gemini_API[Gemini API]
+    end
+
+    UI --> SSR -->|API Calls| API
+    SearchComp -->|POST /search/json| API
+    MapComp -->|Tile Images| OSM
+
+    API --> LLM
+    API --> SearchSvc
+    API --> Auth
+    SearchSvc --> Embed -->|Query Vector| PG
+    SearchSvc -->|SQL Query| PG
+    Auth -->|JWT Verify| PG
+
+    LLM --> OpenAI_API
+    LLM --> Gemini_API
+    Embed --> HuggingFace
+
+    style Client fill:#e8f5e9,stroke:#43a047
+    style Vercel_FE fill:#e3f2fd,stroke:#1e88e5
+    style Vercel_BE fill:#fff3e0,stroke:#fb8c00
+    style Supabase fill:#fce4ec,stroke:#e53935
+    style External fill:#f3e5f5,stroke:#8e24aa
 ```
 
 ### Database Schema
 
+```mermaid
+erDiagram
+    PLACES {
+        uuid id PK
+        text place_id UK
+        text nama
+        text kategori
+        text alamat_lengkap
+        float lat
+        float lng
+        float rating
+        int jumlah_review
+        text status_buka
+        text jam_operasional_raw
+        text telepon
+        text website
+        text harga_text
+        text foto_urls
+        text fasilitas
+        text status
+        uuid owner_id FK
+        timestamp created_at
+    }
+
+    PLACE_EMBEDDINGS {
+        uuid id PK
+        uuid place_id FK
+        vector embedding_768
+    }
+
+    PLACE_FACILITIES {
+        uuid id PK
+        uuid place_id FK
+        text facility_name
+    }
+
+    REVIEWS {
+        uuid id PK
+        uuid place_id FK
+        int rating
+        text comment
+    }
+
+    USERS {
+        uuid id PK
+        text email
+        text role
+        jsonb preferences
+    }
+
+    PLACES ||--o{ PLACE_EMBEDDINGS : "has embedding"
+    PLACES ||--o{ PLACE_FACILITIES : "has facilities"
+    PLACES ||--o{ REVIEWS : "has reviews"
+    PLACES }o--|| USERS : "owned by"
 ```
-[Tambahkan diagram ERD atau schema database]
+
+### Deployment Architecture
+
+```mermaid
+graph LR
+    subgraph Git["Git Repository"]
+        Master[master branch]
+    end
+
+    subgraph Vercel["Vercel"]
+        FE_Deploy["Frontend<br/>Next.js 15"]
+        BE_Deploy["Backend<br/>FastAPI + Python"]
+    end
+
+    subgraph Supabase_D["Supabase"]
+        DB[(PostgreSQL + pgvector)]
+        Auth_D[Auth]
+    end
+
+    Master -->|push| FE_Deploy
+    Master -->|push| BE_Deploy
+    BE_Deploy -->|API calls| DB
+    BE_Deploy -->|JWT verify| Auth_D
+    FE_Deploy -->|Auth client| Auth_D
+
+    style Git fill:#f5f5f5,stroke:#9e9e9e
+    style Vercel fill:#e3f2fd,stroke:#1e88e5
+    style Supabase_D fill:#fce4ec,stroke:#e53935
 ```
 
 ### Folder Structure
 
 ```
-project-root/
-├── src/
-│   ├── components/     # Reusable components
-│   ├── pages/          # Page components
-│   ├── hooks/          # Custom hooks
-│   ├── utils/          # Utility functions
-│   ├── services/       # API services
-│   ├── store/          # State management
-│   └── types/          # TypeScript types
-├── public/             # Static assets
-├── tests/              # Test files
-└── docs/               # Documentation
+ruang-sela/
+├── front-end/              # Next.js 15 Frontend
+│   ├── src/
+│   │   ├── app/            # App Router pages
+│   │   │   ├── (admin)/    # Admin routes
+│   │   │   ├── (manager)/  # Pengelola routes
+│   │   │   ├── (public)/   # Public routes (cari, ruang, profil)
+│   │   │   ├── (settings)/ # Settings routes
+│   │   │   └── (user)/     # User routes
+│   │   ├── components/     # Shared UI components
+│   │   ├── config/         # Environment config
+│   │   ├── features/       # Feature modules (spaces, profiles, admin, etc.)
+│   │   └── shared/         # Shared lib (API client, types)
+│   ├── public/             # Static assets
+│   └── API_REFERENCE.md    # API endpoint reference
+│
+├── BE/                     # FastAPI Backend
+│   ├── app/
+│   │   ├── routers/        # API route handlers
+│   │   ├── services/       # Business logic (search, LLM, embed)
+│   │   ├── middleware/      # Auth middleware
+│   │   ├── schemas.py      # Pydantic schemas
+│   │   ├── database.py     # Database fetch
+│   │   └── config.py       # Settings
+│   ├── docs/API.md         # Backend API documentation
+│   ├── supabase/           # SQL schema + RPC
+│   └── scripts/            # ETL & embedding scripts
+│
+├── data/                   # Raw scraped data (JSON/CSV)
+├── scraper/                # Google Maps Scraper (Playwright)
+├── scripts/                # Utility scripts
+├── SETUP.md                # Installation & setup guide
+├── TECH-STACK.md           # Technology stack documentation
+└── README.md               # Project documentation
 ```
 
 ---
