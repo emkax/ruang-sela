@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { Route } from "next";
 import {
   Building2,
   CalendarDays,
@@ -213,7 +214,7 @@ export default function AdminDashboardPage() {
               return (
                 <Link
                   key={task.id}
-                  href={task.href}
+                  href={task.href as Route}
                   className="flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:bg-slate-50"
                 >
                   <div className="flex min-w-0 items-center gap-3">
