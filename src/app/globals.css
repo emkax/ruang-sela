@@ -35,3 +35,36 @@ textarea:focus-visible {
   outline: 3px solid #38bdf8;
   outline-offset: 2px;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+.hero-bg-grid {
+  background-color: #faf9ff;
+  background-image:
+    radial-gradient(
+      circle at 50% 30%,
+      rgb(167 139 250 / 28%) 0%,
+      rgb(221 214 254 / 15%) 35%,
+      rgb(255 255 255 / 0%) 70%
+    ),
+    linear-gradient(to right, rgb(168 85 247 / 8%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(168 85 247 / 8%) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    48px 48px,
+    48px 48px;
+}
+
+.soft-shadow {
+  box-shadow:
+    0 10px 30px -5px rgb(109 40 217 / 8%),
+    0 4px 12px -2px rgb(0 0 0 / 4%);
+}
+
+.card-shadow {
+  box-shadow:
+    0 6px 20px -3px rgb(109 40 217 / 6%),
+    0 2px 6px -1px rgb(0 0 0 / 3%);
+}
