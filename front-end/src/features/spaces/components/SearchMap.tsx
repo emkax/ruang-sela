@@ -20,8 +20,10 @@ export default function SearchMap({
   onMarkerClick,
 }: SearchMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const instanceRef = useRef<any>(null);
-  const markersRef = useRef<Map<string, any>>(new Map());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const instanceRef = useRef<InstanceType<typeof import("leaflet").Map> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<Map<string, { marker: InstanceType<typeof import("leaflet").Marker>; defaultIcon: InstanceType<typeof import("leaflet").DivIcon>; selectedIcon: InstanceType<typeof import("leaflet").DivIcon> }>>(new Map());
 
   useEffect(() => {
     if (!mapRef.current || instanceRef.current) return;
