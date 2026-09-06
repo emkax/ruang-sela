@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Ban,
@@ -17,10 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { INITIAL_ADMIN_VENUES } from "../data/venues";
-import type {
-  AdminVenueSubmission,
-  VenueVerificationStatus,
-} from "../types/admin-venue";
+import type { VenueVerificationStatus } from "../types/admin-venue";
 
 const statusStyle: Record<
   VenueVerificationStatus,
@@ -41,12 +39,12 @@ const statusStyle: Record<
 };
 
 export default function AdminVenuesPage() {
+  const router = useRouter();
   const [venues, setVenues] = useState(INITIAL_ADMIN_VENUES);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Semua Kategori");
   const [status, setStatus] = useState<"all" | VenueVerificationStatus>("all");
   const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>("venue-1");
   const [refreshing, setRefreshing] = useState(false);
   const pageSize = 5;
 
@@ -65,29 +63,11 @@ export default function AdminVenuesPage() {
       }),
     [venues, query, category, status],
   );
-  const selected = venues.find((venue) => venue.id === selectedId) ?? null;
   const count = (value: VenueVerificationStatus) =>
     venues.filter((venue) => venue.status === value).length;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  const updateStatus = (id: string, next: VenueVerificationStatus) =>
-    setVenues((current) =>
-      current.map((venue) =>
-        venue.id === id
-          ? {
-              ...venue,
-              status: next,
-              verifiedAt:
-                next === "verified" ? "06 Sep 2026, 17.13" : venue.verifiedAt,
-              rejectionReason:
-                next === "rejected"
-                  ? "Dokumen atau informasi tempat belum memenuhi persyaratan."
-                  : undefined,
-            }
-          : venue,
-      ),
-    );
   const refresh = () => {
     setRefreshing(true);
     window.setTimeout(() => setRefreshing(false), 900);
@@ -249,7 +229,7 @@ export default function AdminVenuesPage() {
                 return (
                   <tr
                     key={venue.id}
-                    className={`hover:bg-slate-50 ${selectedId === venue.id ? "border-l-4 border-l-violet-600" : "border-l-4 border-l-transparent"}`}
+                    className={`hover:bg-slate-50 border-l-4 border-l-transparent`}
                   >
                     <td className="py-4 pl-5 pr-3">
                       <div className="relative h-14 w-20 overflow-hidden rounded-lg">
@@ -311,7 +291,7 @@ export default function AdminVenuesPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => setSelectedId(venue.id)}
+                        onClick={() => router.push(`/admin/tempat/${venue.id}`)}
                         className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 font-semibold ${venue.status === "pending" ? "bg-violet-600 text-white hover:bg-violet-700" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                       >
                         Detail
@@ -370,127 +350,6 @@ export default function AdminVenuesPage() {
           </div>
         </div>
       </section>
-
-      {selected && (
-        <VenueDrawer
-          venue={selected}
-          onClose={() => setSelectedId(null)}
-          onVerify={() => updateStatus(selected.id, "verified")}
-          onReject={() => updateStatus(selected.id, "rejected")}
-        />
-      )}
     </main>
-  );
-}
-
-function VenueDrawer({
-  venue,
-  onClose,
-  onVerify,
-  onReject,
-}: {
-  venue: AdminVenueSubmission;
-  onClose: () => void;
-  onVerify: () => void;
-  onReject: () => void;
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Tutup detail"
-        className="fixed inset-0 z-30 bg-slate-950/35"
-      />
-      <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="relative h-52">
-          <Image
-            src={venue.imageSrc}
-            alt={venue.name}
-            fill
-            sizes="448px"
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-black/40 text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="absolute bottom-4 left-5 text-white">
-            <p className="text-xs opacity-80">{venue.category}</p>
-            <h2 className="text-xl font-bold">{venue.name}</h2>
-            <p className="mt-1 flex items-center gap-1 text-xs">
-              <MapPin className="h-3.5 w-3.5" />
-              {venue.city}
-            </p>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
-          <section>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-600">
-              Informasi Tempat
-            </h3>
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Pengelola</dt>
-                <dd className="font-semibold text-slate-900">
-                  {venue.managerName}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Kapasitas</dt>
-                <dd className="font-semibold">{venue.capacity} orang</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Alamat</dt>
-                <dd className="mt-1 font-medium text-slate-800">
-                  {venue.address}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Deskripsi</dt>
-                <dd className="mt-1 leading-relaxed text-slate-700">
-                  {venue.description}
-                </dd>
-              </div>
-            </dl>
-          </section>
-          <section>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-600">
-              Dokumen
-            </h3>
-            <div className="mt-3 space-y-2">
-              {venue.documents.map((document) => (
-                <div
-                  key={document}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 p-3 text-sm"
-                >
-                  <span>{document}</span>
-                  <Check className="h-4 w-4 text-emerald-500" />
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-        {venue.status === "pending" && (
-          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 p-4">
-            <button
-              onClick={onReject}
-              className="rounded-xl border border-rose-500 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50"
-            >
-              Tolak
-            </button>
-            <button
-              onClick={onVerify}
-              className="rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700"
-            >
-              Verifikasi
-            </button>
-          </div>
-        )}
-      </aside>
-    </>
   );
 }
