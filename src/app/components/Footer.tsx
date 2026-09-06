@@ -26,36 +26,36 @@ export interface FooterProps {
   onShareClick?: () => void;
 }
 
-const DEFAULT_COLUMNS = [
+const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: "Platform",
     links: [
-      { label: "Cari Ruang", href: "/cari" },
-      // { label: "Daftarkan Ruang", href: "/daftar" },
-      // { label: "Acara Komunitas", href: "/acara" },
+      { label: "Search Spaces", href: "/search" },
+      // { label: "List Space", href: "/list" },
+      // { label: "Community Events", href: "/events" },
     ],
   },
   {
-    title: "Tentang",
+    title: "About",
     links: [
-      // { label: "Kisah Kami", href: "/tentang" },
-      { label: "Pusat Bantuan", href: "/bantuan" },
-      // { label: "Kontak", href: "/kontak" },
+      // { label: "Our Story", href: "/about" },
+      { label: "Help Center", href: "/help" },
+      // { label: "Contact", href: "/contact" },
     ],
   },
   {
     title: "Legal",
     links: [
-      // { label: "Syarat & Ketentuan", href: "/syarat" },
-      // { label: "Kebijakan Privasi", href: "/privasi" },
+      // { label: "Terms & Conditions", href: "/terms" },
+      // { label: "Privacy Policy", href: "/privacy" },
     ],
   },
-] satisfies FooterColumn[];
+];
 
 export default function Footer({
   brandName = "RuangSela",
-  tagline = "Menghubungkan masyarakat dengan ruang publik dan fasilitas untuk mendukung kolaborasi dan inovasi warga.",
-  columns = DEFAULT_COLUMNS as FooterColumn[],
+  tagline = "Connecting communities with public spaces and facilities to support citizen collaboration and innovation.",
+  columns = DEFAULT_COLUMNS,
   year = new Date().getFullYear(),
   copyrightNote = "Digital Citizenship for All.",
   onLanguageClick,
@@ -90,7 +90,12 @@ export default function Footer({
               <ul className="space-y-2 text-sm text-slate-300/80">
                 {column.links.map((link) => (
                   <li key={`${column.title}-${String(link.href)}`}>
-                    <Link href={link.href}>{link.label}</Link>
+                    <Link
+                      href={link.href}
+                      className="hover:text-white transition-colors"
+                    >
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -107,7 +112,7 @@ export default function Footer({
             <button
               type="button"
               onClick={onLanguageClick}
-              aria-label="Ubah bahasa"
+              aria-label="Change language"
               className="transition-colors hover:text-white"
             >
               <Globe2 className="h-4 w-4" />
@@ -116,7 +121,7 @@ export default function Footer({
             <button
               type="button"
               onClick={onShareClick}
-              aria-label="Bagikan"
+              aria-label="Share"
               className="transition-colors hover:text-white"
             >
               <Share2 className="h-4 w-4" />

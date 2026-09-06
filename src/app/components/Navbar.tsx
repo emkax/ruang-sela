@@ -26,24 +26,20 @@ export interface NavbarProps {
   onProfileClick?: () => void;
 }
 
-const DEFAULT_LINKS = [
+const DEFAULT_LINKS: NavLink[] = [
   {
-    label: "Beranda",
-    href: "/",
+    label: "Home",
+    href: "/" as Route,
   },
   {
-    label: "Cari Tempat",
-    href: "/cari",
+    label: "Search Spaces",
+    href: "/search" as Route,
   },
-  // {
-  //   label: "Kegiatan",
-  //   href: "/kegiatan",
-  // },
   {
-    label: "Pengajuan Saya",
-    href: "/booking",
+    label: "My Submissions",
+    href: "/submissions" as Route,
   },
-] satisfies NavLink[];
+];
 
 export default function Navbar({
   logoText = "RuangSela",
@@ -63,14 +59,17 @@ export default function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (href: Route) => {
-    if (href === "/") {
-      return activeHref === "/";
+    const hrefStr = String(href);
+    const activeStr = String(activeHref);
+
+    if (hrefStr === "/") {
+      return activeStr === "/";
     }
 
     return (
-      activeHref === href ||
-      activeHref.startsWith(`${href}/`) ||
-      activeHref.startsWith(`${href}?`)
+      activeStr === hrefStr ||
+      activeStr.startsWith(`${hrefStr}/`) ||
+      activeStr.startsWith(`${hrefStr}?`)
     );
   };
 
@@ -106,26 +105,26 @@ export default function Navbar({
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white">
       <nav
-        aria-label="Navigasi utama"
+        aria-label="Main navigation"
         className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6"
       >
         {/* Logo */}
         <Link
-          href="/"
+          href="/" as Route
           className="text-xl font-bold text-gray-900"
           onClick={closeMobileMenu}
         >
           {logoText}
         </Link>
 
-        {/* Navigasi desktop */}
+        {/* Desktop Navigation */}
         <div className="hidden items-center gap-8 md:flex">
           {links.map((link) => {
             const active = isActive(link.href);
 
             return (
               <Link
-                key={link.href}
+                key={String(link.href)}
                 href={link.href}
                 className={`text-sm font-medium transition-colors ${
                   active
@@ -139,14 +138,14 @@ export default function Navbar({
           })}
         </div>
 
-        {/* Bagian kanan navbar */}
+        {/* Right Section */}
         <div className="flex items-center gap-1 sm:gap-2">
           {authenticated ? (
             <>
               <button
                 type="button"
                 onClick={onNotificationClick}
-                aria-label="Buka notifikasi"
+                aria-label="Open notifications"
                 className="rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-50 hover:text-indigo-600"
               >
                 <Bell className="h-5 w-5" aria-hidden="true" />
@@ -155,7 +154,7 @@ export default function Navbar({
               <button
                 type="button"
                 onClick={onSettingsClick}
-                aria-label="Buka pengaturan"
+                aria-label="Open settings"
                 className="hidden rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-50 hover:text-indigo-600 sm:inline-flex"
               >
                 <Settings className="h-5 w-5" aria-hidden="true" />
@@ -164,7 +163,7 @@ export default function Navbar({
               <button
                 type="button"
                 onClick={onProfileClick}
-                aria-label="Buka profil"
+                aria-label="Open profile"
                 className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white shadow-sm transition hover:ring-2 hover:ring-indigo-600 hover:ring-offset-2"
               >
                 {userInitial.slice(0, 1).toUpperCase()}
@@ -190,13 +189,11 @@ export default function Navbar({
             </div>
           )}
 
-          {/* Tombol menu mobile */}
+          {/* Mobile Menu Button */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen((value) => !value)}
-            aria-label={
-              mobileMenuOpen ? "Tutup navigasi" : "Buka navigasi"
-            }
+            aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
             className="ml-1 rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-50 md:hidden"
@@ -210,7 +207,7 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* Navigasi mobile */}
+      {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <div
           id="mobile-navigation"
@@ -222,7 +219,7 @@ export default function Navbar({
 
               return (
                 <Link
-                  key={link.href}
+                  key={String(link.href)}
                   href={link.href}
                   onClick={closeMobileMenu}
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -237,7 +234,7 @@ export default function Navbar({
             })}
           </div>
 
-          {/* Tombol autentikasi khusus mobile */}
+          {/* Mobile Auth Buttons */}
           {!authenticated && (
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 sm:hidden">
               <button
@@ -258,7 +255,7 @@ export default function Navbar({
             </div>
           )}
 
-          {/* Menu pengguna khusus mobile */}
+          {/* Mobile User Menu */}
           {authenticated && (
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 sm:hidden">
               <button
@@ -267,7 +264,7 @@ export default function Navbar({
                 className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
               >
                 <Bell className="h-4 w-4" aria-hidden="true" />
-                Notifikasi
+                Notifications
               </button>
 
               <button
@@ -276,7 +273,7 @@ export default function Navbar({
                 className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
               >
                 <Settings className="h-4 w-4" aria-hidden="true" />
-                Pengaturan
+                Settings
               </button>
 
               <button
@@ -287,7 +284,7 @@ export default function Navbar({
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
                   {userInitial.slice(0, 1).toUpperCase()}
                 </span>
-                Profil
+                Profile
               </button>
             </div>
           )}
