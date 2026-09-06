@@ -426,74 +426,113 @@ ruang-sela/
 
 ## ⚙️ Instalasi & Setup
 
+> Dokumentasi lengkap: [SETUP.md](./SETUP.md)
+
 ### Prerequisites
 
 Pastikan Anda telah menginstall:
 
-- **Node.js** (v18.x atau lebih tinggi)
-- **npm** / **yarn** / **pnpm**
-- **[Database]** (jika diperlukan)
+- **Node.js** >= 18.x
+- **npm** >= 9.x
+- **Python** >= 3.10
+- **pip**
 - **Git**
 
-### Langkah Instalasi
+### Quick Start
 
 #### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/[username]/[repo-name].git
-cd [repo-name]
+git clone https://github.com/sayyidoliem/ruang-sela.git
+cd ruang-sela
 ```
 
-#### 2️⃣ Install Dependencies
+#### 2️⃣ Setup Frontend
 
 ```bash
-# Menggunakan npm
+cd front-end
 npm install
-
-# Atau menggunakan yarn
-yarn install
-
-# Atau menggunakan pnpm
-pnpm install
-```
-
-#### 3️⃣ Setup Environment Variables
-
-Buat file `.env` di root directory:
-
-```env
-# Database
-DATABASE_URL="[connection_string]"
-
-# Authentication
-JWT_SECRET="[your_jwt_secret]"
-NEXTAUTH_SECRET="[your_nextauth_secret]"
-
-# API Keys
-API_KEY="[your_api_key]"
-
-# Other configs
-NODE_ENV="development"
-PORT=3000
-```
-
-#### 4️⃣ Setup Database
-
-```bash
-# Jalankan migrasi database
-npm run db:migrate
-
-# Seed data (opsional)
-npm run db:seed
-```
-
-#### 5️⃣ Run Development Server
-
-```bash
+cp .env.example .env.local    # lalu edit sesuai kebutuhan
 npm run dev
 ```
 
-Aplikasi akan berjalan di `http://localhost:3000`
+Frontend berjalan di `http://localhost:3000`
+
+**Environment Variables Frontend** (`.env.local`):
+
+```env
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=https://ruang-sela-be.vercel.app
+```
+
+> **Tanpa setup lengkap?** Frontend tetap berjalan menggunakan backend hosted `ruang-sela-be.vercel.app` — search fallback lokal (keyword scoring), gambar & detail tetap ter-load.
+
+#### 3️⃣ Setup Backend
+
+```bash
+cd BE
+pip install -r requirements.txt
+cp .env.example .env            # lalu edit credential
+uvicorn app.main:app --reload --port 8000
+```
+
+Backend berjalan di `http://localhost:8000`
+
+**Environment Variables Backend** (`.env`):
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGci...
+SUPABASE_ANON_KEY=eyJhbGci...
+
+# LLM Provider (pilih salah satu)
+OPENAI_API_KEY=sk-...          # OpenAI
+GEMINI_API_KEY=AIza...         # Google Gemini (fallback)
+```
+
+API Docs tersedia di `http://localhost:8000/docs`
+
+#### 4️⃣ Setup Database (Supabase)
+
+1. Buat project di [Supabase](https://supabase.com)
+2. Jalankan `BE/supabase/schema.sql` di SQL Editor
+3. Jalankan `BE/supabase/rpc.sql` untuk fungsi `hybrid_search`
+4. Import data dari `BE/schema/`
+5. Generate embedding:
+   ```bash
+   cd BE
+   pip install -r requirements.txt -r requirements.ml.txt
+   python scripts/etl_bulk75.py
+   python scripts/embed_places.py
+   ```
+
+#### 5️⃣ Setup Scraper (Opsional)
+
+```bash
+pip install -r requirements.txt -r requirements-scraper.txt
+playwright install chromium
+
+# Sampel 5 tempat Jakarta Barat
+python -m scraper.main --limit 5 --location "Jakarta Barat"
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Frontend development server |
+| `npm run build` | Frontend production build |
+| `npm run lint` | Frontend linting |
+| `npm run typecheck` | Frontend type check |
+| `uvicorn app.main:app --reload` | Backend development server |
+
+### Akses Aplikasi
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| Backend Docs (Swagger) | http://localhost:8000/docs |
 
 ---
 
