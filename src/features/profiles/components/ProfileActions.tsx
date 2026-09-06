@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { Check, Share2 } from "lucide-react";
 import { useState } from "react";
 
@@ -31,7 +32,7 @@ export default function ProfileActions({ username }: ProfileActionsProps) {
     <div className="mt-5 flex flex-wrap items-center justify-center gap-3.5 sm:justify-start">
       <button
         type="button"
-        onClick={() => router.push(`/profil/${username}/edit`)}
+        onClick={() => router.push(`/profil/${username}/edit` as Route)}
         className="rounded-lg bg-[#5e43f3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#4e33df] focus:outline-none focus:ring-2 focus:ring-[#5e43f3] focus:ring-offset-2"
       >
         Edit Profil
