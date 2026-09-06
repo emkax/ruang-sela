@@ -1,74 +1,115 @@
 import type { Metadata } from "next";
-import type { SVGProps } from "react";
+import type { Route } from "next";
+import type { ComponentType, SVGProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-type IconProps = SVGProps<SVGSVGElement>;
-
-const icon = (path: string) => (props: IconProps) => (
-  <svg {...props} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-    <path d={path} />
-  </svg>
-);
-
-const ArrowRight = icon("M5 12h14m-6-6 6 6-6 6");
-const BookOpen = icon("M2 4.5A2.5 2.5 0 0 1 4.5 2H12v18H4.5A2.5 2.5 0 0 0 2 22V4.5ZM22 4.5A2.5 2.5 0 0 0 19.5 2H12v18h7.5A2.5 2.5 0 0 1 22 22V4.5Z");
-const Check = icon("m5 12 4 4L19 6");
-const MapPin = icon("M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z");
-const Music2 = icon("M9 18V5l10-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm10-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z");
-const Palette = icon("M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h5a4 4 0 0 0 0-8h-5Zm-4 5h.01M12 6h.01M16 9h.01M7 12h.01");
-const Search = icon("m21 21-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z");
-const Trophy = icon("M8 21h8M12 17v4M7 4H4v2a5 5 0 0 0 5 5m8-7h3v2a5 5 0 0 1-5 5M7 3h10v5a5 5 0 0 1-10 0V3Z");
-const Users = icon("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87");
 
 import Footer from "@/app/components/Footer";
 import Navbar from "./components/Navbar";
 
+type IconProps = SVGProps<SVGSVGElement>;
+
+type SpaceIcon = ComponentType<IconProps>;
+
+const createIcon = (displayName: string, path: string): SpaceIcon => {
+  function IconComponent(props: IconProps) {
+    return (
+      <svg
+        {...props}
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
+        <path d={path} />
+      </svg>
+    );
+  }
+
+  IconComponent.displayName = displayName;
+
+  return IconComponent;
+};
+
+const ArrowRight = createIcon("ArrowRight", "M5 12h14m-6-6 6 6-6 6");
+
+const BookOpen = createIcon(
+  "BookOpen",
+  "M2 4.5A2.5 2.5 0 0 1 4.5 2H12v18H4.5A2.5 2.5 0 0 0 2 22V4.5ZM22 4.5A2.5 2.5 0 0 0 19.5 2H12v18h7.5A2.5 2.5 0 0 1 22 22V4.5Z",
+);
+
+const Check = createIcon("Check", "m5 12 4 4L19 6");
+
+const MapPin = createIcon(
+  "MapPin",
+  "M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+);
+
+const Music2 = createIcon(
+  "Music2",
+  "M9 18V5l10-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm10-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z",
+);
+
+const Palette = createIcon(
+  "Palette",
+  "M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h5a4 4 0 0 0 0-8h-5Zm-4 5h.01M12 6h.01M16 9h.01M7 12h.01",
+);
+
+const Search = createIcon(
+  "Search",
+  "m21 21-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z",
+);
+
+const Trophy = createIcon(
+  "Trophy",
+  "M8 21h8M12 17v4M7 4H4v2a5 5 0 0 0 5 5m8-7h3v2a5 5 0 0 1-5 5M7 3h10v5a5 5 0 0 1-10 0V3Z",
+);
+
+const Users = createIcon(
+  "Users",
+  "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87",
+);
+
 export const metadata: Metadata = {
-  title: "RuangSela — Temukan Ruang Komunitas Terlengkap",
+  title: "RuangSela - Temukan Ruang Komunitas Terlengkap",
   description:
     "Menghubungkan warga, komunitas, dan pengelola ruang untuk mengaktifkan ruang kota menjadi pusat kegiatan bermakna.",
 };
 
-const navigationLinks = [
-  { label: "Beranda", href: "#beranda" },
-  { label: "Cari Tempat", href: "#cari-tempat" },
-  { label: "Kegiatan", href: "#kegiatan" },
-  { label: "Pengajuan Saya", href: "#pengajuan-saya" },
-] as const;
-
 const categories = [
   {
     label: "Olahraga",
-    href: "/cari?kategori=olahraga",
+    slug: "olahraga",
     icon: Trophy,
     iconClassName:
       "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white",
   },
   {
     label: "Musik",
-    href: "/cari?kategori=musik",
+    slug: "musik",
     icon: Music2,
     iconClassName:
       "bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white",
   },
   {
     label: "Seni",
-    href: "/cari?kategori=seni",
+    slug: "seni",
     icon: Palette,
     iconClassName:
       "bg-amber-50 text-amber-500 group-hover:bg-amber-500 group-hover:text-white",
   },
   {
     label: "Belajar",
-    href: "/cari?kategori=belajar",
+    slug: "belajar",
     icon: BookOpen,
     iconClassName:
       "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white",
   },
   {
     label: "Pertemuan",
-    href: "/cari?kategori=pertemuan",
+    slug: "pertemuan",
     icon: Users,
     iconClassName:
       "bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white",
@@ -106,7 +147,7 @@ const trendingSpaces = [
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDAtYcrSdw3oW3sqDfN3ZM4nZyMvS-ysLIjN7lrK7RfojZhZoM8VV7jh0ZDQ7dscw6t9tSl1uEbUR_sYSQE_yTnR6kxfBR73kOMOQQbf-eR0TckSoMW0PB-SaINyC2w88JV3V-wE-kEA8B39JnH_exrEqJHNkHLqheVJcNT3qN2uEkeOmhce6ghDxzTzsQzFphlPeg-o5i-qKllMWsQRSbrjEV0BwPTqi3jx8draCceas2K3O1AF7Tg",
     imageAlt: "Taman Kolaborasi ruang hijau",
   },
-];
+] as const;
 
 const recommendedSpaces = [
   {
@@ -153,19 +194,19 @@ const recommendedSpaces = [
       "https://lh3.googleusercontent.com/aida-public/AB6AXuAvj6iRvNfrgWQyn2Z8PJcXPZaktO41A3XqSNyl88fuyEjIOuHKWuarcha4RobASaw2kXBn3gX_Zx5TW13W09hIywqYapA1Gy7Mr1tRjjCnfEq3BOMJ4ACElpxfNPoBnTUFSqCS72p7x3Og69lNhrf7gMVXxgwnF53HCqEJSiceuGLJ68zJI6Mu61WBxnlKTeuE2R_XSGP5fR0xtETlxeXFIMtnLB3OelAN0Tf0CYZn7LweMoi__GxI",
     imageAlt: "Ruang Diskusi Tanah Abang",
   },
-];
+] as const;
 
 const impactMetrics = [
   { value: "15k+", label: "Ruang Tersedia" },
   { value: "50k+", label: "Komunitas Terbantu" },
   { value: "120+", label: "Kota" },
   { value: "4.9/5", label: "Rata-rata Rating" },
-];
+] as const;
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white text-slate-800 antialiased selection:bg-violet-500 selection:text-white">
-    <Navbar/>
+      <Navbar />
 
       <main>
         <section
@@ -191,15 +232,15 @@ export default function HomePage() {
             >
               <form
                 action="/cari"
-                method="GET"
-                role="search"
-                className="soft-shadow group relative flex items-center rounded-2xl border border-purple-100 bg-white p-2 transition-all hover:border-violet-300 focus-within:border-violet-500"
+                className="flex items-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
               >
                 <Search
                   aria-hidden="true"
                   className="ml-3 h-5 w-5 shrink-0 text-slate-400"
                 />
+
                 <input
+                  name="q"
                   type="search"
                   aria-label="Cari ruang, lokasi, atau kegiatan"
                   placeholder="Cari ruang, lokasi, atau kegiatan..."
@@ -216,16 +257,17 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <a
+              <Link
                 href="/cari"
-                className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-6 py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-violet-800"
+                className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-800"
               >
-                Jelajahi Ruang{" "}
+                Jelajahi Ruang
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </a>
+              </Link>
+
               <Link
                 href="#kegiatan"
-                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-violet-300"
+                className="inline-flex items-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-violet-300 hover:text-violet-700"
               >
                 Lihat Kegiatan
               </Link>
@@ -233,7 +275,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="border-b border-slate-100 bg-white py-16">
+        <section
+          aria-labelledby="category-heading"
+          className="border-b border-slate-100 bg-white py-16"
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <h2
               id="category-heading"
@@ -244,21 +289,17 @@ export default function HomePage() {
 
             <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-5">
               {categories.map((category) => {
-                const Icon = category.icon;
+                const CategoryIcon = category.icon;
 
                 return (
                   <Link
-                    key={category.label}
-                    href={{
-                      pathname: "/cari",
-                      query: { kategori: category.href.split("=")[1] },
-                    }}
-                    className="card-shadow group flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 transition hover:-translate-y-1"
+                    href={`/kategori/${category.slug}` as Route}
+                    className="group flex flex-col items-center rounded-2xl border border-slate-100 p-5 text-center transition-shadow hover:shadow-md"
                   >
                     <span
                       className={`mb-3 rounded-xl p-3 transition-colors ${category.iconClassName}`}
                     >
-                      <Icon aria-hidden="true" className="h-7 w-7" />
+                      <CategoryIcon aria-hidden="true" className="h-7 w-7" />
                     </span>
 
                     <span className="text-sm font-bold text-slate-800 transition-colors group-hover:text-violet-700">
@@ -284,6 +325,7 @@ export default function HomePage() {
               >
                 Sedang Trending
               </h2>
+
               <p className="mt-1 text-sm text-slate-500 sm:text-base">
                 Ruang paling aktif minggu ini.
               </p>
@@ -313,8 +355,8 @@ export default function HomePage() {
                   <div className="flex flex-1 flex-col justify-between p-5">
                     <div>
                       <Link
-                        href={`/ruang/${space.id}` as never}
-                        className="text-lg font-bold text-slate-900 hover:text-violet-700"
+                        href={`/ruang/${space.id}`}
+                        className="text-lg font-bold text-slate-900 transition-colors hover:text-violet-700"
                       >
                         {space.title}
                       </Link>
@@ -365,6 +407,7 @@ export default function HomePage() {
               >
                 Rekomendasi Untukmu
               </h2>
+
               <p className="mt-1 text-sm text-slate-500 sm:text-base">
                 Pilihan ruang berdasarkan preferensi Anda.
               </p>
@@ -381,6 +424,7 @@ export default function HomePage() {
                       src={space.imageSrc}
                       alt={space.imageAlt}
                       fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
@@ -388,8 +432,8 @@ export default function HomePage() {
                   <div className="flex flex-1 flex-col justify-between p-4">
                     <div>
                       <Link
-                        href={`/ruang/${space.id}` as never}
-                        className="font-bold text-slate-900 hover:text-violet-700"
+                        href={`/ruang/${space.id}`}
+                        className="font-bold text-slate-900 transition-colors hover:text-violet-700"
                       >
                         {space.title}
                       </Link>
@@ -411,11 +455,8 @@ export default function HomePage() {
                       </div>
 
                       <Link
-                        href={{
-                          pathname: "/cari",
-                          query: { area: space.area },
-                        }}
-                        className="font-medium text-violet-700 hover:underline"
+                        href={`/ruang/${space.id}`}
+                        className="font-semibold text-violet-700 hover:text-violet-800"
                       >
                         {space.area}
                       </Link>
@@ -438,6 +479,7 @@ export default function HomePage() {
                   <p className="mb-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
                     {metric.value}
                   </p>
+
                   <p className="text-xs font-medium text-slate-400 sm:text-sm">
                     {metric.label}
                   </p>
