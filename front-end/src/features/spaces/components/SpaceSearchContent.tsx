@@ -7,7 +7,7 @@ import CardAvailable from "@/app/components/CardAvailable";
 import SearchAndFilter from "./SearchAndFilter";
 import SearchMap from "./SearchMap";
 import type { Space } from "../types/space";
-import { api, type LocationDetail } from "@/shared/lib/api";
+import { api, type LocationCard, type LocationDetail } from "@/shared/lib/api";
 import { mapLocationToSpace } from "../data/map-space";
 
 interface SpaceSearchContentProps {
@@ -56,30 +56,72 @@ export default function SpaceSearchContent({
     startTransition(async () => {
       setSubmittedQuery(query);
       if (!query.trim()) return;
+
       try {
-        const locationResponse = await api.locations({ limit: 30 });
-        const q = query.trim().toLocaleLowerCase("id-ID");
-        const filtered = locationResponse.data.filter(
-          (loc) =>
-            (loc.nama || "").toLocaleLowerCase("id-ID").includes(q) ||
-            (loc.kategori || "").toLocaleLowerCase("id-ID").includes(q) ||
-            (loc.alamat || "").toLocaleLowerCase("id-ID").includes(q) ||
-            (loc.fasilitas || []).some((f) =>
-              f.toLocaleLowerCase("id-ID").includes(q),
-            ),
-        );
-        const details = await fetchWithPhotos(
-          filtered.map((l) => l.place_id),
-        );
-        const detailMap = new Map(details.map((d) => [d.place_id || d.id, d]));
-        const mapped = filtered.map((loc, index) => {
-          const space = mapLocationToSpace(loc, index);
-          const detail = detailMap.get(loc.place_id);
-          if (detail?.foto_urls?.[0]) {
-            space.imageSrc = detail.foto_urls[0];
+        let searchResults: LocationCard[] = [];
+
+        try {
+          const searchResp = await api.search(
+            { data_text: query.trim(), top_k: 50 },
+            { timeoutMs: 30000 },
+          );
+          if (searchResp.results && searchResp.results.length > 0) {
+            searchResults = searchResp.results.map((r) => ({
+              place_id: r.place_id || r.id || "",
+              nama: r.nama,
+              kategori: r.kategori ?? null,
+              alamat: r.alamat ?? null,
+              lat: r.lat ?? null,
+              lng: r.lng ?? null,
+              rating: r.rating ?? null,
+              jumlah_review: r.jumlah_review ?? null,
+              status: "published",
+              foto_count: (r.foto_urls ?? []).length,
+              fasilitas: r.fasilitas ?? [],
+            }));
           }
-          return space;
-        });
+        } catch {
+          // search endpoint unavailable
+        }
+
+        if (searchResults.length === 0) {
+          const locationResponse = await api.locations({ limit: 100 });
+          const keywords = query
+            .trim()
+            .toLocaleLowerCase("id-ID")
+            .replace(/yang|dan|ada|di|untuk|dengan|adalah|ini|itu/g, "")
+            .split(/\s+/)
+            .filter((w) => w.length > 1);
+
+          searchResults = locationResponse.data.filter((loc) => {
+            const fields = [
+              loc.nama || "",
+              loc.kategori || "",
+              loc.alamat || "",
+              ...(loc.fasilitas || []),
+            ]
+              .join(" ")
+              .toLocaleLowerCase("id-ID");
+            return keywords.some((kw) => fields.includes(kw));
+          });
+        }
+
+        const details = await fetchWithPhotos(
+          searchResults.map((l) => l.place_id).filter(Boolean),
+        );
+        const detailMap = new Map(
+          details.map((d) => [d.place_id || d.id, d]),
+        );
+        const mapped = searchResults
+          .filter((loc) => loc.place_id)
+          .map((loc, index) => {
+            const space = mapLocationToSpace(loc, index);
+            const detail = detailMap.get(loc.place_id);
+            if (detail?.foto_urls?.[0]) {
+              space.imageSrc = detail.foto_urls[0];
+            }
+            return space;
+          });
         setSpaces(mapped);
         setCount(mapped.length);
       } catch {
