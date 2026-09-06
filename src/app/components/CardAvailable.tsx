@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-
 import {
-  MapPin,
-  Star,
   BadgeCheck,
   Heart,
+  MapPin,
+  Snowflake,
+  Star,
   Users,
   Wifi,
-  Snowflake,
 } from "lucide-react";
 
 export interface AvailableTag {
@@ -30,34 +29,26 @@ export interface CardAvailableProps {
   price: number;
   priceUnit?: string;
   favorited?: boolean;
+  selected?: boolean;
+  priority?: boolean;
+  onSelect?: () => void;
   onToggleFavorite?: (next: boolean) => void;
   onPesan?: () => void;
 }
 
 export const availableTagPresets = {
-  capacity: (label: string): AvailableTag => ({
-    type: "capacity",
-    label,
-  }),
-
-  wifi: (label = "WiFi"): AvailableTag => ({
-    type: "wifi",
-    label,
-  }),
-
-  ac: (label = "AC"): AvailableTag => ({
-    type: "ac",
-    label,
-  }),
+  capacity: (label: string): AvailableTag => ({ type: "capacity", label }),
+  wifi: (label = "WiFi"): AvailableTag => ({ type: "wifi", label }),
+  ac: (label = "AC"): AvailableTag => ({ type: "ac", label }),
 };
 
-function formatRupiah(value: number) {
-  return new Intl.NumberFormat("id-ID", {
+const TAG_ICONS = { capacity: Users, wifi: Wifi, ac: Snowflake };
+const formatRupiah = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(value);
-}
 
 export default function CardAvailable({
   imageSrc,
@@ -71,10 +62,15 @@ export default function CardAvailable({
   price,
   priceUnit = "sesi",
   favorited = false,
+  selected = false,
+  priority = false,
+  onSelect,
   onToggleFavorite,
   onPesan,
 }: CardAvailableProps) {
   const [isFavorited, setIsFavorited] = useState(favorited);
+
+  useEffect(() => setIsFavorited(favorited), [favorited]);
 
   const handleFavoriteClick = () => {
     const next = !isFavorited;
@@ -83,102 +79,121 @@ export default function CardAvailable({
   };
 
   return (
-    <div className="flex w-full max-w-2xl bg-white rounded-2xl shadow-sm overflow-hidden">
-      <div className="relative w-2/5 shrink-0">
+    <article
+      className={`group flex w-full flex-col overflow-hidden rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md sm:flex-row ${selected ? "border-[#6347EB] shadow-[0_0_0_2px_rgba(99,71,235,0.12)]" : "border-slate-200/90"}`}
+      onClick={onSelect}
+    >
+      <div className="relative h-48 shrink-0 overflow-hidden bg-slate-100 sm:h-auto sm:w-52">
         <Image
           src={imageSrc}
           alt={imageAlt || title}
           fill
-          className="object-cover"
+          priority={priority}
+          sizes="(max-width: 640px) 100vw, 208px"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
-
         {verified && (
-          <span className="absolute top-3 left-3 flex items-center gap-1 bg-emerald-500 text-white text-xs font-medium px-2.5 py-1 rounded-full">
-            <BadgeCheck className="w-3.5 h-3.5" />
-            Terverifikasi
+          <span className="absolute left-3 top-3 flex items-center gap-1 rounded-md bg-[#0d825c] px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+            <BadgeCheck className="h-3.5 w-3.5" /> Terverifikasi
           </span>
         )}
-
         <button
           type="button"
-          onClick={handleFavoriteClick}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleFavoriteClick();
+          }}
           aria-label={
             isFavorited ? "Hapus dari favorit" : "Tambahkan ke favorit"
           }
-          className="absolute bottom-3 left-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 hover:bg-white transition-colors"
+          aria-pressed={isFavorited}
+          className="absolute bottom-3 right-3 inline-flex rounded-full bg-white/90 p-2 text-slate-600 shadow-sm hover:text-rose-500 sm:hidden"
         >
           <Heart
             className={
-              isFavorited
-                ? "w-4 h-4 fill-rose-500 text-rose-500"
-                : "w-4 h-4 text-gray-500"
+              isFavorited ? "h-4 w-4 fill-rose-500 text-rose-500" : "h-4 w-4"
             }
           />
         </button>
       </div>
 
-      <div className="flex-1 p-5 flex flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-bold text-gray-900">{title}</h3>
-
-          <div className="flex items-center gap-1 text-sm font-semibold text-gray-800 shrink-0">
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            {rating.toFixed(1)}
+      <div className="flex flex-1 flex-col justify-between p-5">
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-lg font-bold leading-snug text-slate-900 transition-colors group-hover:text-[#6347EB]">
+              {title}
+            </h2>
+            <div className="flex shrink-0 items-center gap-1 text-sm font-bold text-slate-800">
+              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              <span>{rating.toFixed(1)}</span>
+            </div>
           </div>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 sm:text-sm">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span>
+              {location}
+              {distanceKm != null ? ` - ${distanceKm} km` : ""}
+            </span>
+          </p>
+          {tags.length > 0 && (
+            <div className="mt-3.5 flex flex-wrap items-center gap-2">
+              {tags.map((tag, index) => {
+                const Icon = TAG_ICONS[tag.type];
+                return (
+                  <span
+                    key={`${tag.type}-${tag.label}-${index}`}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-purple-50 px-2.5 py-1 text-xs font-semibold text-[#6347EB]"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {tag.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
-          <MapPin className="w-3.5 h-3.5" />
-
-          <span>
-            {location}
-            {distanceKm != null ? ` - ${distanceKm} km` : ""}
-          </span>
-        </div>
-
-        {tags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            {tags.map((tag) => {
-              let Icon;
-
-              if (tag.type === "capacity") {
-                Icon = Users;
-              } else if (tag.type === "wifi") {
-                Icon = Wifi;
-              } else {
-                Icon = Snowflake;
-              }
-
-              return (
-                <span
-                  key={tag.label}
-                  className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 text-xs font-medium px-2.5 py-1 rounded-full"
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tag.label}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mt-auto pt-4">
-          <div className="text-sm text-gray-700">
-            <span className="font-bold text-gray-900">
+        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
+          <div>
+            <span className="text-base font-bold text-slate-900 sm:text-lg">
               {formatRupiah(price)}
-            </span>{" "}
-            <span className="text-gray-500">/ {priceUnit}</span>
+            </span>
+            <span className="text-xs text-slate-500"> / {priceUnit}</span>
           </div>
-
-          <button
-            type="button"
-            onClick={onPesan}
-            className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg px-5 py-2 transition-colors"
-          >
-            Pesan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleFavoriteClick();
+              }}
+              aria-label={
+                isFavorited ? "Hapus dari favorit" : "Tambahkan ke favorit"
+              }
+              aria-pressed={isFavorited}
+              className="hidden rounded-lg border border-slate-200 p-2 text-slate-400 hover:bg-slate-50 hover:text-rose-500 sm:inline-flex"
+            >
+              <Heart
+                className={
+                  isFavorited
+                    ? "h-4 w-4 fill-rose-500 text-rose-500"
+                    : "h-4 w-4"
+                }
+              />
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPesan?.();
+              }}
+              className="rounded-lg bg-[#6347EB] px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#583cd9] sm:text-sm"
+            >
+              Pesan
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
