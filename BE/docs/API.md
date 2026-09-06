@@ -81,7 +81,7 @@ GET /health
 }
 ```
 
-**Related:** `GET /health/ready` (trigger lazy IndoBERT load), `GET /` (root index)
+**Related:** `GET /health/ready` (trigger lazy IndoBERT load — `status` bisa `"ok"` atau `"model_not_loaded"` jika model belum ter-load), `GET /` (root index)
 
 ---
 
@@ -103,7 +103,7 @@ Authorization: Bearer <jwt>
 | `limit` | int 1-20 | 10 | Maksimal tempat dikembalikan |
 | `min_sim` | float 0-1 | 0.60 | Batas kecocokan tepat (threshold `final_score` hybrid) |
 | `lat`, `lng` | float | - | Geo bias soft (0.05 weight, bukan hard filter) |
-| `radius_m` | int | - | Jika di luar radius → penalty -0.05 soft |
+| `radius_m` | int 100-50000 | - | Jika di luar radius → penalty -0.05 soft |
 
 **Logic threshold minimal 5:**
 1. Build `query_text` dari `profile.preferences` (`needs_ac`, `needs_parking`, `kategori_fav`).
@@ -206,6 +206,7 @@ Authorization: Bearer <jwt>
       "alamat": "Jl. Tenis Raya ...",
       "lat": -6.14, "lng": 106.74,
       "rating": 4.2,
+      "jumlah_review": 415,
       "status": "published",
       "foto_count": 2,
       "fasilitas": ["Parkir","Kursi roda","Restoran","Bar","Tidak..."]
@@ -317,7 +318,7 @@ curl -H "X-Role: ADMIN" http://localhost:8000/location/11new_abc  # pending teta
 | `data_text` | string | **yes** | Query natural language (wajib). Auto-parse jam via regex `(jam|pukul)\s*(\d{1,2})` |
 | `top_k` | int 1-50 | no | default 10 |
 | `lat`, `lng` | float | no | Geo bias soft |
-| `radius_m` | int | no | Jika di luar radius → penalty -0.05 soft |
+| `radius_m` | int 100-50000 | no | Jika di luar radius → penalty -0.05 soft |
 | `hour` | int 0-23 | no | Override auto-parse |
 | `mode` | `hybrid|vector|relational` | no | default `hybrid` |
 
@@ -373,7 +374,9 @@ Alias: `POST /search/llm` sama. `POST /search` (tanpa suffix) juga support JSON 
 }
 ```
 
-**Error 400:** `{"detail":"Field 'data_text' wajib ada dan bertipe string"}`
+**Error:** —
+- `POST /search/json` → Pydantic validation **422** jika `data_text` kosong/tidak ada (mandatory by schema)
+- `POST /search/file` → **400** `{"detail":"Field 'data_text' wajib ada dan bertipe string"}` jika file JSON tidak punya `data_text`
 
 **cURL:**
 ```bash
@@ -426,9 +429,17 @@ curl -X POST http://localhost:8000/search -F "file=@/tmp/q.json" -H "X-Role: USE
 **Quick test tanpa auth:**
 
 ```http
-GET /search/test?q=ruangan%20AC%20parkir%20lega%20kosong%20jam%2012&top_k=5&mode=hybrid
+GET /search/test?q=ruangan%20AC%20parkir%20lega%20kosong%20jam%2012&top_k=5&mode=hybrid&lat=-6.168242&lng=106.758986&radius_m=5000
 GET /search/debug/parse?q=cari%20tempat%20kosong%20pukul%2009.00
 ```
+
+| Query | Type | Default | Desc |
+|---|---|---|---|
+| `q` | string | **required** | Query text |
+| `top_k` | int 1-50 | 10 | |
+| `mode` | `hybrid\|vector\|relational` | `hybrid` | |
+| `lat`, `lng` | float | - | Geo bias soft |
+| `radius_m` | int 100-50000 | - | Jika di luar radius → penalty -0.05 soft |
 
 **Response `/test`:** sama `SearchResponse` tapi tanpa LLM step (pure hybrid). **`/debug/parse`:**
 ```json
@@ -457,7 +468,7 @@ Authorization: Bearer <jwt>
   "note": "Supabase JWT verified"
 }
 ```
-**Anon tanpa JWT:** `{"id":"anon-user","role":"USER","note":"anonymous fallback"}`
+**Anon tanpa JWT:** `{"id":"anon-user","role":"USER","note":"anonymous fallback (set Authorization Bearer)"}`
 
 ```http
 PUT /profile
@@ -579,6 +590,8 @@ Authorization: Bearer <admin_jwt>
   "place_id": "11new_c13f089c",
   "old_status": "pending",
   "new_status": "rejected",
+  "verified_by": "uuid-admin-1",
+  "verified_at": "2026-09-01T13:00:00Z",
   "reason": "Foto tidak jelas"
 }
 ```
@@ -636,12 +649,13 @@ curl -X DELETE http://localhost:8000/admin/deleteLocation/11new_c13f089c -H "X-R
 ```
 GET  /places?limit=20&offset=0&kategori=Taman
 GET  /places/{place_id}
-GET  /places/nearby/search?lat=-6.17&lng=106.76&radius_m=2000
+GET  /places/nearby/search?lat=-6.17&lng=106.76&radius_m=2000&limit=10   # limit int 1-50 default 10, radius_m ge=100 le=50000
 
 GET  /health, GET /health/ready, GET / (root index)
 
-POST /ingest/run (Header X-Admin-Key)
-GET  /ingest/preview
+POST /ingest/run          (Header X-Admin-Key)
+GET  /ingest/preview?limit=1
+POST /ingest/embeddings/rebuild  (Header X-Admin-Key) — rebuild embeddings saja
 ```
 
 Behavior sama dengan `/locations` tapi tanpa role filtering.
